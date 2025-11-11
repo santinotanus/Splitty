@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,23 @@ import {
   Modal,
   TouchableOpacity as RNTouchableOpacity,
   TouchableWithoutFeedback,
-  // Image removed per request; use placeholder circle instead
 } from 'react-native';
 import * as groupsApi from '../api/groups';
+import Header from '../components/Header';
 
 export default function Inicio({ navigation }: any) {
   const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [optionsVisible, setOptionsVisible] = useState(false);
+
+  // Calculate total balance from all groups
+  const totalBalance = useMemo(() => {
+    return groups.reduce((sum, group) => {
+      const balance = group.saldo ?? group.balance ?? 0;
+      return sum + Number(balance);
+    }, 0);
+  }, [groups]);
 
   const fetchGroups = async () => {
     setLoading(true);
@@ -65,6 +73,9 @@ export default function Inicio({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Header Component */}
+      <Header navigation={navigation} balance={totalBalance} />
+
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#033E30" />
@@ -81,8 +92,8 @@ export default function Inicio({ navigation }: any) {
             <FlatList
               data={groups}
               keyExtractor={(item) => item.id}
-              // Add extra top padding so group cards render lower on the screen
-              contentContainerStyle={{ padding: 16, paddingTop: 140 }}
+              // Add extra top padding so group cards render lower on the screen (accounting for header)
+              contentContainerStyle={{ padding: 16, paddingTop: 100 }}
               renderItem={({ item }) => {
                 const membersCount = item.miembros?.length || item.members?.length || 0;
                 const balance = item.saldo ?? item.balance ?? 0;

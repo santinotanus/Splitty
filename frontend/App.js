@@ -11,6 +11,7 @@ import Grupo from './src/screens/Grupo';
 import AddGasto from './src/screens/AddGasto';
 import MainTabs from './src/navigation/MainTabs';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { ProfileProvider } from './src/contexts/ProfileContext';
 
 const Stack = createNativeStackNavigator();
 
@@ -35,6 +36,7 @@ function AppNavigator() {
           <Stack.Screen key="Grupo" name="Grupo" component={Grupo} />
           <Stack.Screen key="InvitarMiembro" name="InvitarMiembro" component={require('./src/screens/InvitarMiembro').default} />
           <Stack.Screen key="AddGasto" name="AddGasto" component={AddGasto} />
+          <Stack.Screen key="PantallaPerfil" name="PantallaPerfil" component={require('./src/screens/PantallaPerfil').default} />
         </>
       ) : (
         <>
@@ -49,9 +51,11 @@ function AppNavigator() {
 
 const App = () => (
   <AuthProvider>
-    <NavigationContainer>
-      <AppNavigator />
-    </NavigationContainer>
+    <ProfileProvider>
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+    </ProfileProvider>
   </AuthProvider>
 );
 

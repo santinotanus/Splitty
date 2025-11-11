@@ -1,10 +1,31 @@
 import axios from "axios";
 import Constants from "expo-constants";
 
-const BACKEND_URL =
-  Constants.expoConfig?.extra?.BACKEND_URL || "http://192.168.100.10:3000";
+// Obtener la URL del backend desde la configuración de Expo o usar la IP correcta
+const getBackendUrl = () => {
+  // Primero intentar desde la configuración de Expo
+  if (Constants.expoConfig?.extra?.BACKEND_URL) {
+    return Constants.expoConfig.extra.BACKEND_URL;
+  }
+  
+  // Si está en desarrollo, intentar detectar la IP automáticamente
+  // Para desarrollo local, usar localhost si está en emulador
+  if (__DEV__) {
+    // En emulador de Android, usar 10.0.2.2 para localhost
+    // En emulador de iOS, usar localhost
+    // En dispositivo físico, necesitas la IP de tu computadora
+    return "http://192.168.0.56:3000"; // Cambia esta IP por la de tu computadora
+  }
+  
+  // Fallback
+  return "http://192.168.0.56:3000";
+};
+
+const BACKEND_URL = getBackendUrl();
 
 console.log('🌐 Backend URL configurada:', BACKEND_URL);
+console.log('📱 Expo Config extra:', Constants.expoConfig?.extra);
+console.log('🔧 Modo desarrollo:', __DEV__);
 
 export const api = axios.create({
   baseURL: BACKEND_URL,
@@ -18,8 +39,9 @@ export const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     console.log(`📤 ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-    if (config.headers.Authorization) {
-      console.log('🔑 Con token:', config.headers.Authorization.substring(0, 50) + '...');
+    const authHeader = config.headers.Authorization;
+    if (authHeader && typeof authHeader === 'string') {
+      console.log('🔑 Con token:', authHeader.substring(0, 50) + '...');
     }
     if (config.data) {
       console.log('📦 Data:', JSON.stringify(config.data));

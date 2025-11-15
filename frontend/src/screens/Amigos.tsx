@@ -1,53 +1,443 @@
-import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
-import { useAmigos } from '../viewmodels/useAmigos';
+import React, { useState } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    Modal,
+    TouchableWithoutFeedback,
+    TextInput,
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Header from '../components/Header';
 
-export default function Amigos() {
-  const { data, loading, error } = useAmigos();
+type Friend = {
+    id: string;
+    name: string;
+    groupsInCommon: number;
+    online: boolean;
+};
 
-  if (loading) return (
-    <View style={styles.center}><ActivityIndicator size="large" color="#0A3E9D" /></View>
-  );
+const FRIENDS: Friend[] = [
+    { id: '1', name: 'María González',  groupsInCommon: 2, online: true },
+    { id: '2', name: 'Carlos Rodríguez', groupsInCommon: 1, online: false },
+    { id: '3', name: 'Ana López',       groupsInCommon: 3, online: true },
+    { id: '4', name: 'Pedro Martínez',  groupsInCommon: 1, online: false },
+];
 
-  if (error) return (
-    <View style={styles.center}><Text style={styles.errorText}>Error cargando amigos</Text></View>
-  );
+const PRIMARY = '#0A4930';
+const BG = '#E6F4F1';
+const CARD = '#FFFFFF';
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Amigos</Text>
-      <FlatList
-        data={data}
-        keyExtractor={(item, idx) => item.id?.toString() || idx.toString()}
-        renderItem={({ item }) => (
-          <View style={{ padding: 12 }}>
-            <Text>{JSON.stringify(item)}</Text>
-          </View>
-        )}
-      />
-    </View>
-  );
+export default function Amigos({ navigation }: any) {
+    const [addFriendVisible, setAddFriendVisible] = useState(false);
+    const [myQRVisible, setMyQRVisible] = useState(false);
+    const [searchText, setSearchText] = useState('');
+
+    return (
+        <View style={styles.container}>
+            {/* Header en modo "amigos" */}
+            <Header navigation={navigation} variant="amigos" />
+
+            {/* Contenido principal */}
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+                {/* Botón "Mi código QR" */}
+                <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={() => setMyQRVisible(true)}
+                >
+                    <MaterialCommunityIcons
+                        name="qrcode"
+                        size={20}
+                        color="#FFFFFF"
+                        style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.primaryButtonText}>Mi código QR</Text>
+                </TouchableOpacity>
+
+                {/* Botón "Agregar amigo" */}
+                <TouchableOpacity
+                    style={styles.secondaryButton}
+                    onPress={() => setAddFriendVisible(true)}
+                >
+                    <Ionicons
+                        name="person-add-outline"
+                        size={18}
+                        color="#2E3D37"
+                        style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.secondaryButtonText}>Agregar amigo</Text>
+                </TouchableOpacity>
+
+                {/* Cabecera de lista */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Mis amigos</Text>
+                    <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{FRIENDS.length} amigos</Text>
+                    </View>
+                </View>
+
+                {/* Lista de amigos (mock) */}
+                {FRIENDS.map(friend => (
+                    <View key={friend.id} style={styles.friendCard}>
+                        <View style={styles.friendRow}>
+                            <View style={styles.friendLeft}>
+                                <View style={styles.friendAvatarWrapper}>
+                                    <View style={styles.avatarCircleSmall}>
+                                        <Text style={styles.avatarInitialSmall}>
+                                            {friend.name.charAt(0)}
+                                        </Text>
+                                    </View>
+                                    {friend.online && <View style={styles.onlineDot} />}
+                                </View>
+
+                                <View>
+                                    <Text style={styles.friendName}>{friend.name}</Text>
+                                    <Text style={styles.friendSubtitle}>
+                                        {friend.groupsInCommon} grupo
+                                        {friend.groupsInCommon !== 1 && 's'} en común
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <TouchableOpacity>
+                                <Ionicons name="trash-outline" size={20} color="#A1A8AA" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ))}
+            </ScrollView>
+
+            {/* MODAL: Agregar amigo */}
+            <Modal
+                visible={addFriendVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setAddFriendVisible(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setAddFriendVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableWithoutFeedback>
+                            <View style={styles.addFriendCard}>
+                                <View style={styles.addFriendHeader}>
+                                    <Text style={styles.addFriendTitle}>Agregar amigo</Text>
+                                    <TouchableOpacity onPress={() => setAddFriendVisible(false)}>
+                                        <Ionicons name="close" size={20} color="#666" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.searchInputWrapper}>
+                                    <Ionicons
+                                        name="search"
+                                        size={18}
+                                        color="#A0A7A3"
+                                        style={{ marginRight: 8 }}
+                                    />
+                                    <TextInput
+                                        style={styles.searchInput}
+                                        placeholder="Buscar por nombre o ID..."
+                                        placeholderTextColor="#A0A7A3"
+                                        value={searchText}
+                                        onChangeText={setSearchText}
+                                    />
+                                </View>
+
+                                <View style={styles.addFriendButtonsRow}>
+                                    <TouchableOpacity style={styles.scanButton}>
+                                        <Ionicons
+                                            name="qr-code-outline"
+                                            size={18}
+                                            color="#2E3D37"
+                                            style={{ marginRight: 6 }}
+                                        />
+                                        <Text style={styles.scanButtonText}>Escanear QR</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity style={styles.confirmAddButton}>
+                                        <Text style={styles.confirmAddButtonText}>Agregar</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+
+            {/* MODAL: Mi código QR */}
+            <Modal
+                visible={myQRVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setMyQRVisible(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setMyQRVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableWithoutFeedback>
+                            <View style={styles.qrCard}>
+                                <View style={styles.qrHeader}>
+                                    <Text style={styles.addFriendTitle}>Mi código QR</Text>
+                                    <TouchableOpacity onPress={() => setMyQRVisible(false)}>
+                                        <Ionicons name="close" size={20} color="#666" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Placeholder QR */}
+                                <View style={styles.qrPlaceholder}>
+                                    <MaterialCommunityIcons
+                                        name="qrcode"
+                                        size={64}
+                                        color="#A0A7A3"
+                                    />
+                                </View>
+
+                                <Text style={styles.qrUserName}>Tu Usuario</Text>
+                                <Text style={styles.qrUserId}>ID: #TU123456</Text>
+                                <Text style={styles.qrHelpText}>
+                                    Comparte este código para que otros puedan agregarte como amigo
+                                </Text>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7F9FF',
-    padding: 16,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F7F9FF',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#0A3E9D',
-    marginBottom: 12,
-  },
-  errorText: {
-    color: '#B00020',
-  },
+    container: {
+        flex: 1,
+        backgroundColor: BG,
+    },
+    scrollContent: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 24,
+    },
+
+    primaryButton: {
+        backgroundColor: PRIMARY,
+        borderRadius: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    primaryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    secondaryButton: {
+        backgroundColor: CARD,
+        borderRadius: 14,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    secondaryButtonText: {
+        color: '#2E3D37',
+        fontSize: 15,
+        fontWeight: '500',
+    },
+
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1E2B26',
+    },
+    badge: {
+        backgroundColor: '#DDE8E2',
+        borderRadius: 999,
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+    },
+    badgeText: {
+        fontSize: 12,
+        color: '#4C5A54',
+    },
+
+    friendCard: {
+        backgroundColor: CARD,
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        marginBottom: 12,
+    },
+    friendRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    friendLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    friendAvatarWrapper: {
+        marginRight: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarCircleSmall: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#C5DAD1',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarInitialSmall: {
+        color: '#1E2B26',
+        fontWeight: '700',
+    },
+    onlineDot: {
+        position: 'absolute',
+        bottom: 2,
+        right: 2,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#1ECD4E',
+        borderWidth: 2,
+        borderColor: CARD,
+    },
+    friendName: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#1E2B26',
+    },
+    friendSubtitle: {
+        fontSize: 13,
+        color: '#5F6C68',
+        marginTop: 2,
+    },
+
+    // Modales
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.25)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+    },
+
+    addFriendCard: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+    },
+    addFriendHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    addFriendTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1E2B26',
+    },
+    searchInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#D7E0DB',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginBottom: 12,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 14,
+        color: '#1E2B26',
+    },
+    addFriendButtonsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 4,
+    },
+    scanButton: {
+        flex: 1,
+        marginRight: 8,
+        backgroundColor: '#F2F5F3',
+        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    scanButtonText: {
+        color: '#2E3D37',
+        fontWeight: '500',
+        fontSize: 14,
+    },
+    confirmAddButton: {
+        flex: 1,
+        marginLeft: 8,
+        backgroundColor: '#5E7E71',
+        borderRadius: 10,
+        paddingVertical: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    confirmAddButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+
+    qrCard: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 20,
+        alignItems: 'center',
+    },
+    qrHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignSelf: 'stretch',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    qrPlaceholder: {
+        width: 160,
+        height: 160,
+        borderRadius: 16,
+        backgroundColor: '#F3F5F4',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    qrUserName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1E2B26',
+        marginBottom: 4,
+    },
+    qrUserId: {
+        fontSize: 14,
+        color: '#5F6C68',
+        marginBottom: 8,
+    },
+    qrHelpText: {
+        fontSize: 13,
+        color: '#7B8682',
+        textAlign: 'center',
+    },
 });

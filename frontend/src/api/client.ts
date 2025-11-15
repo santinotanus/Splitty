@@ -3,22 +3,16 @@ import Constants from "expo-constants";
 
 // Obtener la URL del backend desde la configuración de Expo o usar la IP correcta
 const getBackendUrl = () => {
-  // Primero intentar desde la configuración de Expo
-  if (Constants.expoConfig?.extra?.BACKEND_URL) {
-    return Constants.expoConfig.extra.BACKEND_URL;
-  }
-  
-  // Si está en desarrollo, intentar detectar la IP automáticamente
-  // Para desarrollo local, usar localhost si está en emulador
-  if (__DEV__) {
-    // En emulador de Android, usar 10.0.2.2 para localhost
-    // En emulador de iOS, usar localhost
-    // En dispositivo físico, necesitas la IP de tu computadora
-    return "http://192.168.0.56:3000"; // Cambia esta IP por la de tu computadora
-  }
-  
-  // Fallback
-  return "http://192.168.0.56:3000";
+    // 1) Tomar siempre lo que venga de app.config.js
+    const url = Constants.expoConfig?.extra?.BACKEND_URL;
+
+    if (!url) {
+        console.warn(
+            "⚠️ BACKEND_URL no está configurada. Revisá .env.local y app.config.js"
+        );
+    }
+
+    return url;
 };
 
 const BACKEND_URL = getBackendUrl();

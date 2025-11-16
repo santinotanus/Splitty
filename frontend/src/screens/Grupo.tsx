@@ -1,8 +1,7 @@
+// frontend/src/screens/Grupo.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, Modal, Alert, TouchableOpacity as RNTouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { useGrupo } from '../viewmodels/useGrupo';
-import * as friendsApi from '../api/friends';
-import * as groupsApi from '../api/groups';
 import * as balancesApi from '../api/balances';
 import * as gastosApi from '../api/gastos';
 
@@ -21,7 +20,6 @@ export default function Grupo({ route, navigation }: any) {
     navigation.setOptions({ headerShown: false });
     const unsubBlur = navigation.addListener('blur', () => setOptionsVisible(false));
     const unsubFocus = navigation.addListener('focus', () => {
-      // refresh members when returning to the screen (e.g., after adding via InvitarMiembro)
       refreshMembers();
     });
     return () => {
@@ -31,7 +29,6 @@ export default function Grupo({ route, navigation }: any) {
   }, [grupoId]);
 
   useEffect(() => {
-    // load debts when switching to deudas tab
     if (activeTab === 'deudas') {
       fetchDebts();
     }
@@ -63,14 +60,12 @@ export default function Grupo({ route, navigation }: any) {
     try {
       const rows = await gastosApi.listExpenses(grupoId);
       const list = Array.isArray(rows) ? rows : [];
-      // Enrich each expense with participantes count by fetching detail
       const detailed: any[] = [];
       for (const r of list) {
         try {
           const d = await gastosApi.getExpense(grupoId, r.id);
           detailed.push({ ...r, participantes: d.participantes || [] });
         } catch (e) {
-          // fallback
           detailed.push({ ...r, participantes: r.participantes || [] });
         }
       }
@@ -86,12 +81,9 @@ export default function Grupo({ route, navigation }: any) {
   const membersCount = members.length;
 
   const handleInvite = () => {
-    // navigate to the dedicated invite screen where user can copy/share link or add friends
     navigation.navigate('InvitarMiembro', { grupoId, nombre, emoji });
     setOptionsVisible(false);
   };
-
-  // Add-friend flow lives inside the InvitarMiembro screen now.
 
   return (
     <View style={styles.container}>
@@ -120,9 +112,9 @@ export default function Grupo({ route, navigation }: any) {
               <View style={[styles.avatarCircle, { backgroundColor: '#033E30' }]}>
                 <Text style={{ color: '#fff', fontWeight: '700' }}>{(m.nombre || m.correo || 'U').charAt(0).toUpperCase()}</Text>
               </View>
-              <Text style={{ marginTop: 6, fontWeight: '700' }}>{m.nombre || m.correo}</Text>
-              <Text style={{ color: '#333' }}>${(m.totalPagado || 0).toFixed(2)}</Text>
-              <Text style={{ color: (m.balance || 0) >= 0 ? '#0A8F4A' : '#B00020' }}>{(m.balance || 0) >= 0 ? '+' : '-'}${Math.abs((m.balance || 0)).toFixed(2)}</Text>
+              <Text style={{ marginTop: 6, fontWeight: '700', fontSize: 12 }}>{m.nombre || m.correo}</Text>
+              <Text style={{ color: '#333', fontSize: 11 }}>${(m.totalPagado || 0).toFixed(2)}</Text>
+              <Text style={{ color: (m.balance || 0) >= 0 ? '#0A8F4A' : '#B00020', fontSize: 11 }}>{(m.balance || 0) >= 0 ? '+' : '-'}${Math.abs((m.balance || 0)).toFixed(2)}</Text>
             </View>
           ))}
         </View>
@@ -152,16 +144,19 @@ export default function Grupo({ route, navigation }: any) {
               <Text style={{ color: '#666' }}>No hay gastos en este grupo.</Text>
             </View>
           ) : (
-            <View style={{ padding: 12 }}>
-              {groupExpenses.map((g: any) => (
-                <View key={g.id} style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
+            <FlatList
+              data={groupExpenses}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingHorizontal: 12 }}
+              renderItem={({ item: g }) => (
+                <View style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
                   <Text style={{ fontWeight: '700' }}>{g.descripcion || 'Gasto'}</Text>
                   <Text style={{ color: '#666' }}>Pagador: {g.pagador_nombre || g.pagador_correo}</Text>
                   <Text style={{ marginTop: 6, fontWeight: '700' }}>${Number(g.importe || 0).toFixed(2)}</Text>
                   <Text style={{ color: '#999', fontSize: 12 }}>{g.participantes?.length ?? 0} participantes</Text>
                 </View>
-              ))}
-            </View>
+              )}
+            />
           ))}
         </>
       ) : (
@@ -190,13 +185,6 @@ export default function Grupo({ route, navigation }: any) {
         </View>
       )}
 
-      {/* Recent header */}
-      <View style={styles.recentHeader}>
-        <Text style={{ fontWeight: '700' }}>Gastos recientes</Text>
-        <Text style={{ color: '#666' }}>0 gastos</Text>
-      </View>
-
-
       {/* Floating + */}
       <TouchableOpacity style={styles.fab} onPress={() => setOptionsVisible(true)}>
         <Text style={{ color: '#fff', fontSize: 28 }}>+</Text>
@@ -208,7 +196,14 @@ export default function Grupo({ route, navigation }: any) {
           <TouchableWithoutFeedback>
             <View style={styles.modalContent}>
               <Text style={{ fontWeight: '700', marginBottom: 8 }}>¿Qué querés hacer?</Text>
-              <TouchableOpacity style={[styles.modalButton, membersCount <= 1 && { opacity: 0.5 }]} disabled={membersCount <= 1} onPress={() => { setOptionsVisible(false); navigation.navigate('AddGasto', { grupoId, nombre }); }}>
+              <TouchableOpacity 
+                style={[styles.modalButton, membersCount === 0 && { opacity: 0.5 }]} 
+                disabled={membersCount === 0} 
+                onPress={() => { 
+                  setOptionsVisible(false); 
+                  navigation.navigate('AddGasto', { grupoId, nombre }); 
+                }}
+              >
                 <Text style={styles.modalButtonText}>Añadir Gastos</Text>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.modalButtonSecondary]} onPress={() => { setOptionsVisible(false); handleInvite(); }}>
@@ -221,8 +216,6 @@ export default function Grupo({ route, navigation }: any) {
           </TouchableWithoutFeedback>
         </RNTouchableOpacity>
       </Modal>
-
-      {/* Add-friend flow moved to InvitarMiembro screen */}
     </View>
   );
 }
@@ -242,18 +235,11 @@ const styles = StyleSheet.create({
   tabsRow: { flexDirection: 'row', padding: 12, gap: 8, backgroundColor: '#E6F4F1' },
   tab: { flex: 1, padding: 10, borderRadius: 8, alignItems: 'center' },
   recentHeader: { padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  actionsCard: { padding: 16, margin: 16, backgroundColor: '#fff', borderRadius: 12 },
-  actionPrimary: { backgroundColor: '#033E30', padding: 12, borderRadius: 8, alignItems: 'flex-start' },
-  actionSecondary: { marginTop: 12, padding: 12, borderRadius: 8, backgroundColor: '#f6f9f6' },
-  fab: { position: 'absolute', right: 20, bottom: 30, width: 56, height: 56, borderRadius: 28, backgroundColor: '#033E30', alignItems: 'center', justifyContent: 'center' },
+  fab: { position: 'absolute', right: 20, bottom: 30, width: 56, height: 56, borderRadius: 28, backgroundColor: '#033E30', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
   modalContent: { backgroundColor: '#fff', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  modalOption: { padding: 12, borderRadius: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6eee9', marginBottom: 8, alignItems: 'center' },
-  // modal button styles (align with Inicio)
   modalButton: { backgroundColor: '#033E30', padding: 12, borderRadius: 8, marginBottom: 8, alignItems: 'center' },
   modalButtonText: { color: '#fff', fontWeight: '700' },
   modalButtonSecondary: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, alignItems: 'center', borderWidth: 1, borderColor: '#e6eee9' },
   modalButtonTextSecondary: { color: '#033E30', fontWeight: '700' },
-  friendRow: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#e6eee9', marginBottom: 8, backgroundColor: '#fff' },
-  friendRowSelected: { borderColor: '#033E30', backgroundColor: '#e9f7f3' },
 });

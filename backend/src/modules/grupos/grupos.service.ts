@@ -167,11 +167,40 @@ export async function addMembers({ firebaseUid, grupoId, memberIds }: { firebase
     return isFriend ? candidateId : null;
   }));
   const validMemberIds = validations.filter((v): v is string => !!v);
-  await Promise.allSettled(validMemberIds.map(async (memberId) => {
-    const exists = await commonRepo.isMember(grupoId, memberId);
-    if (!exists) await repo.addMember(grupoId, memberId, 'miembro');
-  }));
-  return { added: validMemberIds.length };
+  // Debugging/logging: log validation results to help track why members may not be added
+  try {
+    console.log('addMembers: adminId=', adminId, 'grupoId=', grupoId, 'requested=', memberIds, 'unique=', unique, 'validCandidates=', validMemberIds);
+    await Promise.allSettled(validMemberIds.map(async (memberId) => {
+      const exists = await commonRepo.isMember(grupoId, memberId);
+      if (!exists) await repo.addMember(grupoId, memberId, 'miembro');
+    }));
+  } catch (e) {
+    console.error('addMembers error while inserting members', e);
+    throw e;
+  }
+  return { added: validMemberIds.length, validMemberIds };
+}
+
+export async function obtenerBalance({ firebaseUid, grupoId }: { firebaseUid: string; grupoId: string }) {
+  const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
+  if (!userId) {
+    const err = new Error('USER_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+  const existe = await commonRepo.findGroupById(grupoId);
+  if (!existe) {
+    const err = new Error('GROUP_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+  const esMiembro = await commonRepo.isMember(grupoId, userId);
+  if (!esMiembro) {
+    const err = new Error('FORBIDDEN');
+    (err as any).status = 403;
+    throw err;
+  }
+  return await repo.listBalances(grupoId);
 }
 
 

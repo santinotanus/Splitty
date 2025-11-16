@@ -46,6 +46,25 @@ export async function getFriends() {
   return res.data;
 }
 
+/**
+ * Buscar usuario por email en el backend.
+ * GET /users/search?email=...
+ */
+export async function findUserByEmail(email: string) {
+  const res = await api.get('/users/search', { params: { email } });
+  return res.data;
+}
+
+/**
+ * Conveniencia: buscar por email e invitar si se encuentra a la persona.
+ * Devuelve el resultado de la creación de solicitud o lanza error.
+ */
+export async function inviteByEmail(email: string) {
+  const user = await findUserByEmail(email);
+  if (!user || !user.id) throw new Error('USER_NOT_FOUND');
+  return sendFriendRequest(user.id);
+}
+
 export default {
   sendFriendRequest,
   getPendingReceived,

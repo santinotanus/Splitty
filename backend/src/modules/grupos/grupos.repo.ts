@@ -48,5 +48,14 @@ export async function listGroupsForUser(usuarioId: string) {
         .orderBy('g.fecha_creacion', 'asc');
 }
 
+export async function listBalances(grupoId: string) {
+  return db('dbo.ledger as l')
+    .join('dbo.usuarios as u', 'u.id', 'l.usuario_id')
+    .where('l.grupo_id', grupoId)
+    .groupBy('l.usuario_id', 'u.id', 'u.nombre', 'u.correo')
+    .select('u.id as usuarioId', 'u.nombre as usuarioNombre', 'u.correo as usuarioCorreo', db.raw("SUM(CASE WHEN l.direccion = 'C' THEN l.importe ELSE -l.importe END) as balance"))
+    .orderBy('u.nombre');
+}
+
 
 

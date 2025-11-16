@@ -12,14 +12,24 @@ export async function createExpenseWithDivisions(
   participantes: Array<{ usuarioId: string; parte_importe: number | null; parte_porcentaje: number | null }>
 ) {
   // 1. Insertar gasto
+  // Normalize fecha_pago to null if undefined (prevents driver/DB errors)
+  const fechaParam = fecha_pago ?? null;
+
   const gastoResult = await trx.raw(
     `INSERT INTO dbo.gastos (id, grupo_id, pagador_id, descripcion, importe, lugar, fecha_pago)
      OUTPUT inserted.id
      VALUES (NEWID(), ?, ?, ?, ?, ?, ?)`,
-    [grupoId, pagadorId, descripcion, importe, lugar, fecha_pago]
+    [grupoId, pagadorId, descripcion, importe, lugar, fechaParam]
   );
 
-  const gastoId = gastoResult?.[0]?.[0]?.id as string | undefined;
+  // Different drivers/knex versions return different shapes. Be defensive.
+  let gastoId: string | undefined;
+  try {
+    gastoId = gastoResult?.recordset?.[0]?.id || gastoResult?.[0]?.[0]?.id || gastoResult?.[0]?.id;
+  } catch (e) {
+    gastoId = undefined;
+  }
+
   if (!gastoId) {
     throw new Error('FAILED_TO_CREATE_EXPENSE');
   }

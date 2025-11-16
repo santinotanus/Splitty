@@ -40,11 +40,13 @@ export const listarGastosQuerySchema = z.object({
   params: z.object({
     groupId: z.string().uuid()
   }),
+  // Hacemos la sección `query` opcional y parcial, de modo que no falle
+  // cuando la request no incluya parámetros de paginación/fechas.
   query: z.object({
     page: z.string().regex(/^\d+$/).transform(Number).optional(),
     limit: z.string().regex(/^\d+$/).transform(Number).optional(),
     fechaDesde: z.string().datetime().optional(),
     fechaHasta: z.string().datetime().optional()
-  })
+  }).partial().optional()
 });
 

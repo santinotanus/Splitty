@@ -21,7 +21,7 @@ const BG = '#E6F4F1';
 const CARD = '#FFFFFF';
 
 export default function Amigos({ navigation }: any) {
-    const { friends, loading, error, addFriend } = useAmigos();
+    const { friends, loading, error, addFriend, inviteByEmail, pendingRequests, pendingLoading, acceptPending, rejectPending } = useAmigos();
 
     const [addFriendVisible, setAddFriendVisible] = useState(false);
     const [myQRVisible, setMyQRVisible] = useState(false);
@@ -35,15 +35,31 @@ export default function Amigos({ navigation }: any) {
         }
 
         try {
-            await addFriend(id);
+            // Si el input parece un correo, invitar por email (busca y crea solicitud)
+            if (id.includes('@')) {
+                await inviteByEmail(id);
+            } else {
+                await addFriend(id);
+            }
+
             setFriendIdToAdd('');
             setAddFriendVisible(false);
-            // si querés, podés sumar un toast o Alert de éxito
-            // Alert.alert('Listo', 'Amigo agregado correctamente');
+            Alert.alert('Listo', 'Invitación enviada correctamente');
         } catch (err: any) {
-            console.error(err);
-            const backendMsg =
-                'No se pudo agregar el amigo. Verificá el ID.';
+            console.error('Error al invitar/agregar amigo', err);
+
+            // Mapear errores comunes del backend a mensajes legibles
+            const msgCode = err?.response?.data?.error || err?.message || String(err);
+            let backendMsg = 'No se pudo agregar el amigo. Verificá el dato ingresado.';
+            if (msgCode === 'USER_NOT_FOUND' || msgCode === 'NOT_FOUND') {
+                backendMsg = 'No se encontró un usuario con ese correo/ID.';
+            } else if (msgCode === 'ALREADY_FRIENDS') {
+                backendMsg = 'Ya son amigos.';
+            } else if (msgCode === 'PENDING_REQUEST_EXISTS') {
+                backendMsg = 'Ya existe una solicitud pendiente.';
+            } else if (msgCode === 'CANNOT_REQUEST_SELF') {
+                backendMsg = 'No podés auto-invitarte.';
+            }
 
             Alert.alert('Error', backendMsg);
         }
@@ -64,6 +80,32 @@ export default function Amigos({ navigation }: any) {
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={styles.scrollContent}>
+                    {/* Solicitudes recibidas */}
+                    {pendingLoading ? (
+                        <View style={{ paddingVertical: 12 }}>
+                            <ActivityIndicator color={PRIMARY} />
+                        </View>
+                    ) : pendingRequests.length > 0 && (
+                        <View style={{ marginBottom: 16 }}>
+                            <Text style={styles.sectionTitle}>Solicitudes recibidas</Text>
+                            {pendingRequests.map((s: any) => (
+                                <View key={s.id} style={styles.requestCard}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontWeight: '600' }}>{s.solicitanteNombre || 'Usuario'}</Text>
+                                        <Text style={{ color: '#666' }}>{s.solicitanteCorreo || ''}</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                                        <TouchableOpacity style={styles.acceptButton} onPress={() => acceptPending(s.id)}>
+                                            <Text style={{ color: '#FFF' }}>Aceptar</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.rejectButton} onPress={() => rejectPending(s.id)}>
+                                            <Text style={{ color: '#333' }}>Rechazar</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    )}
                     {/* Botón "Mi código QR" */}
                     <TouchableOpacity
                         style={styles.primaryButton}
@@ -116,10 +158,15 @@ export default function Amigos({ navigation }: any) {
 
                                     <View>
                                         <Text style={styles.friendName}>{friend.name}</Text>
-                                        <Text style={styles.friendSubtitle}>
-                                            {friend.groupsInCommon} grupo
-                                            {friend.groupsInCommon !== 1 && 's'} en común
-                                        </Text>
+                                            <Text style={styles.friendSubtitle}>
+                                                {friend.groupsInCommon} grupo
+                                                {friend.groupsInCommon !== 1 && 's'} en común
+                                            </Text>
+                                            {friend.groupsNames && friend.groupsNames.length > 0 && (
+                                                <Text style={{ color: '#8A9A92', marginTop: 4, fontSize: 12 }}>
+                                                    {friend.groupsNames.join(', ')}
+                                                </Text>
+                                            )}
                                     </View>
                                 </View>
 
@@ -165,7 +212,7 @@ export default function Amigos({ navigation }: any) {
                                     />
                                     <TextInput
                                         style={styles.searchInput}
-                                        placeholder="Ingresar ID del amigo..."
+                                        placeholder="Ingresar correo del amigo..."
                                         placeholderTextColor="#A0A7A3"
                                         value={friendIdToAdd}
                                         onChangeText={setFriendIdToAdd}
@@ -482,5 +529,30 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#7B8682',
         textAlign: 'center',
+    },
+    requestCard: {
+        backgroundColor: CARD,
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    acceptButton: {
+        backgroundColor: PRIMARY,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        marginRight: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rejectButton: {
+        backgroundColor: '#F2F5F3',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

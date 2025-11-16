@@ -1,10 +1,12 @@
 import { db } from '../../config/db';
 
 export async function areAlreadyFriends(userIdA: string, userIdB: string) {
-  const [low, high] = userIdA < userIdB ? [userIdA, userIdB] : [userIdB, userIdA];
+  // Check both ordering possibilities in case historical rows were inserted with the opposite order.
   const row = await db('dbo.amistades')
     .select('usuario_a')
-    .where({ usuario_a: low, usuario_b: high })
+    .where(function () {
+      this.where({ usuario_a: userIdA, usuario_b: userIdB }).orWhere({ usuario_a: userIdB, usuario_b: userIdA });
+    })
     .first();
   return !!row;
 }
@@ -49,22 +51,40 @@ export async function updateSolicitudEstado(id: string, estado: 'aceptada' | 're
 }
 
 export async function insertAmistad(userIdA: string, userIdB: string) {
-  // Usar SQL para ordenar correctamente los UNIQUEIDENTIFIERs
-  // SQL Server compara UNIQUEIDENTIFIERs de manera diferente a JavaScript
-  const result = await db.raw(
-    `INSERT INTO dbo.amistades (usuario_a, usuario_b, fecha_alta)
-     SELECT 
-       CASE WHEN ? < ? THEN ? ELSE ? END,
-       CASE WHEN ? < ? THEN ? ELSE ? END,
-       SYSUTCDATETIME()
-     WHERE NOT EXISTS (
-       SELECT 1 FROM dbo.amistades 
-       WHERE (usuario_a = ? AND usuario_b = ?) 
-          OR (usuario_a = ? AND usuario_b = ?)
-     )`,
-    [userIdA, userIdB, userIdA, userIdB, userIdA, userIdB, userIdB, userIdA, userIdA, userIdB, userIdB, userIdA]
-  );
-  return result;
+  // Ordenar IDs en memoria para respetar la restricción CK_amistades_orden
+  const [low, high] = userIdA < userIdB ? [userIdA, userIdB] : [userIdB, userIdA];
+
+  // Comprobar que no existan ya como amigos
+  const exists = await areAlreadyFriends(low, high);
+  if (exists) {
+    return null; // ya existe, nada que insertar
+  }
+
+  // Insertar (Knex) y devolver resultado; usar SYSUTCDATETIME() para la fecha
+  try {
+      // Try SQL insertion using server-side ordering of UNIQUEIDENTIFIERs to match CK constraint
+      const rawRes = await db.raw(
+        `INSERT INTO dbo.amistades (usuario_a, usuario_b, fecha_alta)
+         SELECT
+           CASE WHEN CAST(? AS UNIQUEIDENTIFIER) < CAST(? AS UNIQUEIDENTIFIER) THEN CAST(? AS UNIQUEIDENTIFIER) ELSE CAST(? AS UNIQUEIDENTIFIER) END,
+           CASE WHEN CAST(? AS UNIQUEIDENTIFIER) < CAST(? AS UNIQUEIDENTIFIER) THEN CAST(? AS UNIQUEIDENTIFIER) ELSE CAST(? AS UNIQUEIDENTIFIER) END,
+           SYSUTCDATETIME()
+         WHERE NOT EXISTS (
+           SELECT 1 FROM dbo.amistades
+           WHERE (usuario_a = CAST(? AS UNIQUEIDENTIFIER) AND usuario_b = CAST(? AS UNIQUEIDENTIFIER))
+              OR (usuario_a = CAST(? AS UNIQUEIDENTIFIER) AND usuario_b = CAST(? AS UNIQUEIDENTIFIER))
+         )`,
+        [
+          userIdA, userIdB, userIdA, userIdB,
+          userIdA, userIdB, userIdB, userIdA,
+          userIdA, userIdB, userIdB, userIdA
+        ]
+      );
+      return rawRes;
+  } catch (e: any) {
+    // Re-throw para que el servicio lo maneje (por ejemplo errores de constraint)
+    throw e;
+  }
 }
 
 export async function listFriends(userId: string) {

@@ -1,3 +1,4 @@
+// frontend/src/screens/Inicio.tsx
 import React, { useEffect, useMemo } from 'react';
 import {
     View,
@@ -17,7 +18,6 @@ export default function Inicio({ navigation }: any) {
     const { groups, loading, error, refresh } = useInicio();
     const [optionsVisible, setOptionsVisible] = React.useState(false);
 
-    // Calculate total balance from all groups
     const totalBalance = useMemo(() => {
         return groups.reduce((sum, group) => {
             const balance = group.saldo ?? group.balance ?? 0;
@@ -36,17 +36,43 @@ export default function Inicio({ navigation }: any) {
 
     const renderEmpty = () => (
         <View style={styles.emptyContainer}>
-            <View style={styles.emptyIcon} />
+            {/* Ícono de personas en círculos */}
+            <View style={styles.emptyIconContainer}>
+                <View style={styles.emptyIcon}>
+                    <View style={styles.personCircle1} />
+                    <View style={styles.personCircle2} />
+                    <View style={styles.personCircle3} />
+                </View>
+            </View>
+
+            {/* Título y descripción */}
             <Text style={styles.emptyTitle}>Sin grupos aún</Text>
             <Text style={styles.emptySubtitle}>
-                Todavía no sos parte de ningún grupo. Unite a uno existente o creá el tuyo propio.
+                Todavía no sos parte de ningún grupo.{'\n'}
+                Unite a uno existente o creá el tuyo propio.
             </Text>
+
+            {/* Botones de acción */}
+            <View style={styles.emptyButtonsContainer}>
+                <TouchableOpacity
+                    style={styles.createButton}
+                    onPress={() => navigation.navigate('CrearGrupo')}
+                >
+                    <Text style={styles.createButtonText}>Crear Grupo</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.joinButton}
+                    onPress={() => navigation.navigate('UnirseGrupo')}
+                >
+                    <Text style={styles.joinButtonText}>Unirse a un Grupo</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 
     return (
         <View style={styles.container}>
-            {/* Header Component */}
             <Header navigation={navigation} balance={totalBalance} />
 
             {loading ? (
@@ -57,95 +83,68 @@ export default function Inicio({ navigation }: any) {
                 <View style={styles.center}>
                     <Text style={styles.errorText}>{error}</Text>
                 </View>
+            ) : groups.length === 0 ? (
+                renderEmpty()
             ) : (
                 <View style={{ flex: 1 }}>
-                    {groups.length === 0 ? (
-                        renderEmpty()
-                    ) : (
-                        <>
-                            {/* Tus grupos + cantidad activos */}
-                            <View style={styles.groupsHeaderRow}>
-                                <Text style={styles.groupsHeaderTitle}>Tus grupos</Text>
-                                <View style={styles.groupsHeaderBadge}>
-                                    <Text style={styles.groupsHeaderBadgeText}>
-                                        {groups.length} activo{groups.length !== 1 ? 's' : ''}
-                                    </Text>
-                                </View>
-                            </View>
+                    <View style={styles.groupsHeaderRow}>
+                        <Text style={styles.groupsHeaderTitle}>Tus grupos</Text>
+                        <View style={styles.groupsHeaderBadge}>
+                            <Text style={styles.groupsHeaderBadgeText}>
+                                {groups.length} activo{groups.length !== 1 ? 's' : ''}
+                            </Text>
+                        </View>
+                    </View>
 
-                            <FlatList
-                                data={groups}
-                                keyExtractor={(item) => item.id}
-                                contentContainerStyle={{
-                                    paddingHorizontal: 16,
-                                    paddingTop: 8,
-                                    paddingBottom: 24,
-                                }}
-                                renderItem={({ item }) => {
-                                    const membersCount =
+                    <FlatList
+                        data={groups}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{
+                            paddingHorizontal: 16,
+                            paddingTop: 8,
+                            paddingBottom: 24,
+                        }}
+                        renderItem={({ item }) => {
+                            const membersCount = item.miembrosCount ?? item.membersCount ?? item.miembros?.length ?? item.members?.length ?? 0;
+                            const balance = item.saldo ?? item.balance ?? 0;
+                            const balanceSign = Number(balance) > 0 ? '+' : Number(balance) < 0 ? '-' : '';
+                            const balanceColor = Number(balance) > 0 ? '#0A8F4A' : Number(balance) < 0 ? '#D9534F' : '#666';
 
-                                        item.miembrosCount ??          // si lo mapea el viewmodel
-                                        item.membersCount ??           // otro nombre posible
-                                        item.miembros?.length ??
-                                        item.members?.length ??
-                                        0;
-
-
-                                       // item.miembros?.length || item.members?.length || 0;
-                                    const balance = item.saldo ?? item.balance ?? 0;
-                                    const balanceSign =
-                                        Number(balance) > 0 ? '+' : Number(balance) < 0 ? '-' : '';
-                                    const balanceColor =
-                                        Number(balance) > 0
-                                            ? '#0A8F4A'
-                                            : Number(balance) < 0
-                                                ? '#D9534F'
-                                                : '#666';
-
-                                    return (
-                                        <TouchableOpacity
-                                            style={styles.groupCard}
-                                            onPress={() =>
-                                                navigation.navigate('Grupo', {
-                                                    grupoId: item.id,
-                                                    nombre: item.nombre || item.name,
-                                                    emoji: item.emoji,
-                                                })
-                                            }
-                                        >
-                                            <View style={styles.groupLeft}>
-                                                <View style={styles.emojiCircle}>
-                                                    <Text style={styles.emojiText}>
-                                                        {item.emoji || '✈️'}
-                                                    </Text>
-                                                </View>
-                                                <View style={{ marginLeft: 12, flex: 1 }}>
-                                                    <Text style={styles.groupName}>
-                                                        {item.nombre || item.name}
-                                                    </Text>
-                                                    <Text style={styles.groupSubtitle}>
-                                                        {membersCount} miembros •{' '}
-                                                        {item.descripcion || 'Sin descripción'}
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                            <View style={styles.balanceContainer}>
-                                                <Text
-                                                    style={[
-                                                        styles.balanceText,
-                                                        { color: balanceColor },
-                                                    ]}
-                                                >
-                                                    {balanceSign}$
-                                                    {Math.abs(Number(balance)).toFixed(2)}
-                                                </Text>
-                                            </View>
-                                        </TouchableOpacity>
-                                    );
-                                }}
-                            />
-                        </>
-                    )}
+                            return (
+                                <TouchableOpacity
+                                    style={styles.groupCard}
+                                    onPress={() =>
+                                        navigation.navigate('Grupo', {
+                                            grupoId: item.id,
+                                            nombre: item.nombre || item.name,
+                                            emoji: item.emoji,
+                                        })
+                                    }
+                                >
+                                    <View style={styles.groupLeft}>
+                                        <View style={styles.emojiCircle}>
+                                            <Text style={styles.emojiText}>
+                                                {item.emoji || '✈️'}
+                                            </Text>
+                                        </View>
+                                        <View style={{ marginLeft: 12, flex: 1 }}>
+                                            <Text style={styles.groupName}>
+                                                {item.nombre || item.name}
+                                            </Text>
+                                            <Text style={styles.groupSubtitle}>
+                                                {membersCount} miembros • {item.descripcion || 'Sin descripción'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.balanceContainer}>
+                                        <Text style={[styles.balanceText, { color: balanceColor }]}>
+                                            {balanceSign}${Math.abs(Number(balance)).toFixed(2)}
+                                        </Text>
+                                    </View>
+                                </TouchableOpacity>
+                            );
+                        }}
+                    />
                 </View>
             )}
 
@@ -177,18 +176,13 @@ export default function Inicio({ navigation }: any) {
                                 <Text style={styles.modalButtonText}>Crear Grupo</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[
-                                    styles.modalButton,
-                                    { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6eee9' },
-                                ]}
+                                style={[styles.modalButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6eee9' }]}
                                 onPress={() => {
                                     setOptionsVisible(false);
                                     navigation.navigate('UnirseGrupo');
                                 }}
                             >
-                                <Text
-                                    style={[styles.modalButtonText, { color: '#033E30' }]}
-                                >
+                                <Text style={[styles.modalButtonText, { color: '#033E30' }]}>
                                     Unirse a un Grupo
                                 </Text>
                             </TouchableOpacity>
@@ -219,29 +213,98 @@ const styles = StyleSheet.create({
     errorText: {
         color: '#B00020',
     },
+
+    // Empty state styles
     emptyContainer: {
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 80,
         paddingHorizontal: 32,
+        paddingBottom: 100,
+    },
+    emptyIconContainer: {
+        marginBottom: 32,
     },
     emptyIcon: {
         width: 120,
         height: 120,
-        marginBottom: 20,
+        position: 'relative',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    personCircle1: {
+        position: 'absolute',
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#C5DAD1',
+        top: 10,
+        left: 10,
+    },
+    personCircle2: {
+        position: 'absolute',
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#9DBFAF',
+        top: 10,
+        right: 10,
+    },
+    personCircle3: {
+        position: 'absolute',
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#7DA696',
+        bottom: 10,
+        left: 36,
     },
     emptyTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#033E30',
-        marginBottom: 8,
+        color: '#182321',
+        marginBottom: 12,
+        textAlign: 'center',
     },
     emptySubtitle: {
+        fontSize: 14,
+        color: '#5F6C68',
         textAlign: 'center',
-        color: '#666',
+        lineHeight: 20,
+        marginBottom: 32,
+    },
+    emptyButtonsContainer: {
+        width: '100%',
+        gap: 12,
+    },
+    createButton: {
+        backgroundColor: '#033E30',
+        borderRadius: 12,
+        paddingVertical: 16,
+        alignItems: 'center',
+        width: '100%',
+    },
+    createButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    joinButton: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        paddingVertical: 16,
+        alignItems: 'center',
+        width: '100%',
+        borderWidth: 1,
+        borderColor: '#D7E0DB',
+    },
+    joinButtonText: {
+        color: '#033E30',
+        fontSize: 16,
+        fontWeight: '600',
     },
 
-    // ----- NUEVO: header "Tus grupos" -----
+    // Groups header
     groupsHeaderRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -267,46 +330,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    fab: {
-        position: 'absolute',
-        right: 20,
-        bottom: 70,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        backgroundColor: '#033E30',
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 4,
-    },
-    modalBackdrop: {
-        flex: 1,
-        justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0,0,0,0.3)',
-    },
-    modalContent: {
-        backgroundColor: '#fff',
-        padding: 16,
-        borderTopLeftRadius: 12,
-        borderTopRightRadius: 12,
-    },
-    modalTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        marginBottom: 12,
-    },
-    modalButton: {
-        backgroundColor: '#033E30',
-        padding: 12,
-        borderRadius: 8,
-        marginBottom: 8,
-        alignItems: 'center',
-    },
-    modalButtonText: {
-        color: '#fff',
-        fontWeight: '600',
-    },
-
+    // Group cards
     groupCard: {
         backgroundColor: '#F2F7F4',
         padding: 16,
@@ -337,10 +361,58 @@ const styles = StyleSheet.create({
     groupSubtitle: {
         color: '#666',
         marginTop: 6,
+        fontSize: 13,
     },
     balanceContainer: {
         justifyContent: 'center',
         alignItems: 'flex-end',
     },
     balanceText: { fontSize: 16, fontWeight: '700' },
+
+    // Floating button
+    fab: {
+        position: 'absolute',
+        right: 20,
+        bottom: 70,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#033E30',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+    },
+
+    // Modal styles
+    modalBackdrop: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        padding: 16,
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+    },
+    modalTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 12,
+    },
+    modalButton: {
+        backgroundColor: '#033E30',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 8,
+        alignItems: 'center',
+    },
+    modalButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+    },
 });

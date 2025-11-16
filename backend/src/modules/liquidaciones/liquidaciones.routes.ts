@@ -4,7 +4,8 @@ import { validate } from '../../middlewares/validate';
 import * as ctrl from './liquidaciones.controller';
 import { crearLiquidacionSchema, groupIdParamsSchema } from './liquidaciones.schemas';
 
-const r = Router();
+// Router must inherit parent params (groupId) when mounted at '/groups/:groupId'
+const r = Router({ mergeParams: true });
 
 r.post('/settlements', requireAuth, validate(crearLiquidacionSchema), ctrl.crearLiquidacion);
 r.get('/settlements', requireAuth, validate(groupIdParamsSchema), ctrl.listarLiquidaciones);

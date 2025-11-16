@@ -1,3 +1,4 @@
+// frontend/src/viewmodels/useInvitarMiembro.ts
 import { useEffect, useState } from 'react';
 import * as groupsApi from '../api/groups';
 import * as friendsApi from '../api/friends';
@@ -12,7 +13,8 @@ export function useInvitarMiembro(grupoId?: string) {
     if (!grupoId) return;
     setLoadingInvite(true);
     try {
-      const res = await groupsApi.createInviteLink(grupoId);
+      // Generar link con expiración de 30 días (43200 minutos)
+      const res = await groupsApi.createInviteLink(grupoId, 43200);
       setInviteData(res);
     } catch (e) {
       console.error('createInviteLink error', e);
@@ -42,8 +44,17 @@ export function useInvitarMiembro(grupoId?: string) {
   }, [grupoId]);
 
   const addMember = async (friendId: string) => {
-    return groupsApi.addMembers(grupoId!, [friendId]);
+    if (!grupoId) throw new Error('NO_GROUP_ID');
+    return groupsApi.addMembers(grupoId, [friendId]);
   };
 
-  return { inviteData, loadingInvite, friends, loadingFriends, fetchInvite, fetchFriends, addMember };
+  return { 
+    inviteData, 
+    loadingInvite, 
+    friends, 
+    loadingFriends, 
+    fetchInvite, 
+    fetchFriends, 
+    addMember 
+  };
 }

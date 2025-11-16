@@ -44,11 +44,21 @@ export async function getMemberRole(grupoId: string, usuarioId: string) {
 }
 
 export async function listGroupsForUser(usuarioId: string) {
-  return db('dbo.grupos as g')
-    .join('dbo.miembros_grupo as m', 'm.grupo_id', 'g.id')
-    .where('m.usuario_id', usuarioId)
-    .select('g.id', 'g.nombre', 'g.descripcion', 'g.fecha_creacion', 'm.rol')
-    .orderBy('g.fecha_creacion', 'asc');
+    return db('dbo.grupos as g')
+        .join('dbo.miembros_grupo as m', 'm.grupo_id', 'g.id')           // el vínculo del usuario actual
+        .where('m.usuario_id', usuarioId)
+        .leftJoin('dbo.miembros_grupo as allm', 'allm.grupo_id', 'g.id') // todos los miembros del grupo
+        .groupBy('g.id', 'g.nombre', 'g.descripcion', 'g.fecha_creacion', 'm.rol')
+        .select(
+            'g.id',
+            'g.nombre',
+            'g.descripcion',
+            'g.fecha_creacion',
+            'm.rol',
+            db.raw('COUNT(allm.usuario_id) as miembrosCount')
+        )
+        .orderBy('g.fecha_creacion', 'asc');
 }
+
 
 

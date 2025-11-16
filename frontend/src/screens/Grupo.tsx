@@ -96,7 +96,7 @@ export default function Grupo({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E6F4F1' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingTop: 36, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingTop: 60, backgroundColor: '#fff' },
   back: { fontSize: 28, color: '#033E30', width: 32 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#033E30' },
   headerSubtitle: { color: '#666', fontSize: 12 },

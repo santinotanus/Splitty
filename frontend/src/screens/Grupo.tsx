@@ -1,17 +1,87 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, Modal, Alert, TouchableOpacity as RNTouchableOpacity, TouchableWithoutFeedback } from 'react-native';
 import { useGrupo } from '../viewmodels/useGrupo';
+import * as friendsApi from '../api/friends';
+import * as groupsApi from '../api/groups';
+import * as balancesApi from '../api/balances';
+import * as gastosApi from '../api/gastos';
 
 export default function Grupo({ route, navigation }: any) {
   const { grupoId, nombre, emoji } = route.params || {};
   const [optionsVisible, setOptionsVisible] = useState(false);
-  const { members, loading, refreshMembers } = useGrupo(grupoId);
+  const { members, loading, refreshMembers, groupTotal } = useGrupo(grupoId) as any;
+  const [activeTab, setActiveTab] = useState<'gastos' | 'deudas'>('gastos');
+  const [debts, setDebts] = useState<any[]>([]);
+  const [credits, setCredits] = useState<any[]>([]);
+  const [debtsLoading, setDebtsLoading] = useState(false);
+  const [groupExpenses, setGroupExpenses] = useState<any[]>([]);
+  const [expensesLoading, setExpensesLoading] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
     const unsubBlur = navigation.addListener('blur', () => setOptionsVisible(false));
-    return () => unsubBlur();
+    const unsubFocus = navigation.addListener('focus', () => {
+      // refresh members when returning to the screen (e.g., after adding via InvitarMiembro)
+      refreshMembers();
+    });
+    return () => {
+      unsubBlur();
+      unsubFocus();
+    };
   }, [grupoId]);
+
+  useEffect(() => {
+    // load debts when switching to deudas tab
+    if (activeTab === 'deudas') {
+      fetchDebts();
+    }
+    if (activeTab === 'gastos') {
+      fetchGroupExpenses();
+    }
+  }, [activeTab, grupoId]);
+
+  const fetchDebts = async () => {
+    if (!grupoId) return;
+    setDebtsLoading(true);
+    try {
+      const d = await balancesApi.getMyDebts(grupoId);
+      const c = await balancesApi.getMyCredits(grupoId);
+      setDebts(Array.isArray(d) ? d : []);
+      setCredits(Array.isArray(c) ? c : []);
+    } catch (e) {
+      console.error('fetchDebts error', e);
+      setDebts([]);
+      setCredits([]);
+    } finally {
+      setDebtsLoading(false);
+    }
+  };
+
+  const fetchGroupExpenses = async () => {
+    if (!grupoId) return;
+    setExpensesLoading(true);
+    try {
+      const rows = await gastosApi.listExpenses(grupoId);
+      const list = Array.isArray(rows) ? rows : [];
+      // Enrich each expense with participantes count by fetching detail
+      const detailed: any[] = [];
+      for (const r of list) {
+        try {
+          const d = await gastosApi.getExpense(grupoId, r.id);
+          detailed.push({ ...r, participantes: d.participantes || [] });
+        } catch (e) {
+          // fallback
+          detailed.push({ ...r, participantes: r.participantes || [] });
+        }
+      }
+      setGroupExpenses(detailed);
+    } catch (e) {
+      console.error('fetchGroupExpenses error', e);
+      setGroupExpenses([]);
+    } finally {
+      setExpensesLoading(false);
+    }
+  };
 
   const membersCount = members.length;
 
@@ -20,6 +90,8 @@ export default function Grupo({ route, navigation }: any) {
     navigation.navigate('InvitarMiembro', { grupoId, nombre, emoji });
     setOptionsVisible(false);
   };
+
+  // Add-friend flow lives inside the InvitarMiembro screen now.
 
   return (
     <View style={styles.container}>
@@ -40,24 +112,83 @@ export default function Grupo({ route, navigation }: any) {
       {/* Balance */}
       <View style={styles.balanceBox}>
         <Text style={styles.balanceLabel}>Balance del grupo</Text>
-        <Text style={styles.balanceAmount}>$0</Text>
+        <Text style={styles.balanceAmount}>${(groupTotal ?? 0).toFixed(2)}</Text>
         <Text style={styles.totalSpent}>Total gastado</Text>
-        <View style={{ alignItems: 'center', marginTop: 8 }}>
-          <View style={styles.avatarCircle}><Text style={{ color: '#fff' }}>Tú</Text></View>
-          <Text style={{ marginTop: 6, fontWeight: '700' }}>Tú</Text>
-          <Text style={{ color: '#0A8F4A' }}>+$0</Text>
+        <View style={{ flexDirection: 'row', marginTop: 8, gap: 12 }}>
+          {members.map((m: any) => (
+            <View key={m.id} style={{ alignItems: 'center' }}>
+              <View style={[styles.avatarCircle, { backgroundColor: '#033E30' }]}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>{(m.nombre || m.correo || 'U').charAt(0).toUpperCase()}</Text>
+              </View>
+              <Text style={{ marginTop: 6, fontWeight: '700' }}>{m.nombre || m.correo}</Text>
+              <Text style={{ color: '#333' }}>${(m.totalPagado || 0).toFixed(2)}</Text>
+              <Text style={{ color: (m.balance || 0) >= 0 ? '#0A8F4A' : '#B00020' }}>{(m.balance || 0) >= 0 ? '+' : '-'}${Math.abs((m.balance || 0)).toFixed(2)}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsRow}>
-        <View style={[styles.tab, { backgroundColor: '#033E30' }]}>
-          <Text style={{ color: '#fff' }}>Gastos</Text>
-        </View>
-        <View style={[styles.tab, { backgroundColor: '#f0f0f0' }]}>
-          <Text style={{ color: '#666' }}>Deudas</Text>
-        </View>
+        <TouchableOpacity style={[styles.tab, activeTab === 'gastos' ? { backgroundColor: '#033E30' } : { backgroundColor: '#f0f0f0' }]} onPress={() => setActiveTab('gastos')}>
+          <Text style={{ color: activeTab === 'gastos' ? '#fff' : '#666' }}>Gastos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.tab, activeTab === 'deudas' ? { backgroundColor: '#033E30' } : { backgroundColor: '#f0f0f0' }]} onPress={() => setActiveTab('deudas')}>
+          <Text style={{ color: activeTab === 'deudas' ? '#fff' : '#666' }}>Deudas</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Content for each tab */}
+      {activeTab === 'gastos' ? (
+        <>
+          <View style={styles.recentHeader}>
+            <Text style={{ fontWeight: '700' }}>Gastos recientes</Text>
+            <Text style={{ color: '#666' }}>{(groupExpenses || []).length} gastos</Text>
+          </View>
+          {expensesLoading ? (
+            <ActivityIndicator />
+          ) : (groupExpenses.length === 0 ? (
+            <View style={{ padding: 16 }}>
+              <Text style={{ color: '#666' }}>No hay gastos en este grupo.</Text>
+            </View>
+          ) : (
+            <View style={{ padding: 12 }}>
+              {groupExpenses.map((g: any) => (
+                <View key={g.id} style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
+                  <Text style={{ fontWeight: '700' }}>{g.descripcion || 'Gasto'}</Text>
+                  <Text style={{ color: '#666' }}>Pagador: {g.pagador_nombre || g.pagador_correo}</Text>
+                  <Text style={{ marginTop: 6, fontWeight: '700' }}>${Number(g.importe || 0).toFixed(2)}</Text>
+                  <Text style={{ color: '#999', fontSize: 12 }}>{g.participantes?.length ?? 0} participantes</Text>
+                </View>
+              ))}
+            </View>
+          ))}
+        </>
+      ) : (
+        <View style={{ padding: 16 }}>
+          {debtsLoading ? (
+            <ActivityIndicator />
+          ) : (
+            <>
+              <Text style={{ fontWeight: '700', marginBottom: 8 }}>Deudas</Text>
+              {debts.length === 0 ? <Text style={{ color: '#666' }}>No tenés deudas en este grupo</Text> : debts.map((d: any, idx: number) => (
+                <View key={idx} style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
+                  <Text style={{ fontWeight: '700' }}>{d.haciaUsuarioNombre || d.haciaUsuarioCorreo}</Text>
+                  <Text style={{ color: '#B00020' }}>Debés ${Number(d.importe).toFixed(2)}</Text>
+                </View>
+              ))}
+
+              <Text style={{ fontWeight: '700', marginTop: 12 }}>Créditos</Text>
+              {credits.length === 0 ? <Text style={{ color: '#666' }}>Nadie te debe</Text> : credits.map((c: any, idx: number) => (
+                <View key={idx} style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
+                  <Text style={{ fontWeight: '700' }}>{c.desdeUsuarioNombre || c.desdeUsuarioCorreo}</Text>
+                  <Text style={{ color: '#0A8F4A' }}>Te deben ${Number(c.importe).toFixed(2)}</Text>
+                </View>
+              ))}
+            </>
+          )}
+        </View>
+      )}
 
       {/* Recent header */}
       <View style={styles.recentHeader}>
@@ -90,6 +221,8 @@ export default function Grupo({ route, navigation }: any) {
           </TouchableWithoutFeedback>
         </RNTouchableOpacity>
       </Modal>
+
+      {/* Add-friend flow moved to InvitarMiembro screen */}
     </View>
   );
 }
@@ -121,4 +254,6 @@ const styles = StyleSheet.create({
   modalButtonText: { color: '#fff', fontWeight: '700' },
   modalButtonSecondary: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, alignItems: 'center', borderWidth: 1, borderColor: '#e6eee9' },
   modalButtonTextSecondary: { color: '#033E30', fontWeight: '700' },
+  friendRow: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: '#e6eee9', marginBottom: 8, backgroundColor: '#fff' },
+  friendRowSelected: { borderColor: '#033E30', backgroundColor: '#e9f7f3' },
 });

@@ -61,13 +61,26 @@ export default function InvitarMiembro({ route, navigation }: any) {
   const handleAddFriend = async (friendId: string) => {
     setAddingIds(prev => ({ ...prev, [friendId]: true }));
     try {
-      await addMember(friendId);
-      Alert.alert('Hecho', 'Miembro añadido al grupo');
-      // refresh friends list
-      fetchFriends();
+      const res = await addMember(friendId);
+      console.log('addMembers response', res);
+      const added = res?.added ?? (res?.ok ? 1 : 0);
+      if (added > 0) {
+        Alert.alert('Hecho', 'Miembro añadido al grupo');
+        navigation.goBack();
+      } else {
+        Alert.alert('Info', 'El servidor no agregó el miembro. Verifica que sean amigos y que tengas permisos.');
+        navigation.goBack();
+      }
     } catch (e) {
       console.error('addMembers error', e);
-      Alert.alert('Error', 'No se pudo añadir al miembro');
+      const code = e?.response?.data?.error || e?.message;
+      if (code === 'FORBIDDEN') {
+        Alert.alert('Error', 'No tenés permiso para agregar miembros (solo admin puede).');
+      } else if (code === 'ALREADY_MEMBER') {
+        Alert.alert('Info', 'Ese usuario ya es miembro del grupo.');
+      } else {
+        Alert.alert('Error', 'No se pudo añadir al miembro');
+      }
     } finally {
       setAddingIds(prev => ({ ...prev, [friendId]: false }));
     }
@@ -146,10 +159,10 @@ export default function InvitarMiembro({ route, navigation }: any) {
             renderItem={({ item }) => (
               <View style={styles.friendCard}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={styles.avatarSmall}><Text style={{ color: '#fff' }}>{(item.name || '').slice(0,1).toUpperCase() || 'U'}</Text></View>
+                  <View style={styles.avatarSmall}><Text style={{ color: '#fff' }}>{(item.nombre || item.correo || '?').slice(0,1).toUpperCase() || 'U'}</Text></View>
                   <View style={{ marginLeft: 12 }}>
-                    <Text style={styles.friendName}>{item.name || item.displayName || item.email}</Text>
-                    <Text style={styles.friendEmail}>{item.email || ''}</Text>
+                    <Text style={styles.friendName}>{item.nombre || item.correo}</Text>
+                    <Text style={styles.friendEmail}>{item.correo || ''}</Text>
                   </View>
                 </View>
                 <TouchableOpacity style={styles.addPill} onPress={() => handleAddFriend(item.id)} disabled={!!addingIds[item.id]}>

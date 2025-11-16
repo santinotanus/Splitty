@@ -77,6 +77,14 @@ export async function addMembers(grupoId: string, memberIds: string[]) {
   return res.data;
 }
 
+/**
+ * Get balances per member for a group
+ */
+export async function getGroupBalances(grupoId: string) {
+  const res = await api.get(`/grupos/${encodeURIComponent(grupoId)}/balance`);
+  return res.data;
+}
+
 export default {
   createGroup,
   getGroupMembers,

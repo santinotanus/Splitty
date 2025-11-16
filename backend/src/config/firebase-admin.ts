@@ -11,10 +11,16 @@ try {
 
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId: 'splitty-102b4'
+    projectId: 'splitty-102b4',
+    databaseURL: `https://splitty-102b4.firebaseio.com` // 🔥 NUEVO
   });
 
   console.log('✅ Firebase Admin SDK inicializado correctamente');
+
+  // 🔥 NUEVO: Inicializar Firestore
+  const db = admin.firestore();
+  console.log('✅ Firestore inicializado correctamente');
+
 } catch (error) {
   console.error('❌ Error al inicializar Firebase Admin SDK:', error);
   process.exit(1);
@@ -22,3 +28,4 @@ try {
 
 export const firebaseAdmin = admin;
 export const auth = admin.auth();
+export const db = admin.firestore(); // 🔥 NUEVO: Exportar Firestore

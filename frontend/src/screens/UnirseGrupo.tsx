@@ -1,7 +1,7 @@
-// frontend/src/screens/UnirseGrupo.tsx
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Camera, CameraView } from 'expo-camera';
 import { useUnirseGrupo } from '../viewmodels/useUnirseGrupo';
 
 export default function UnirseGrupo({ navigation }: any) {
@@ -9,20 +9,64 @@ export default function UnirseGrupo({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const { joinByInvite } = useUnirseGrupo();
 
-  const handleJoinByToken = async () => {
-    if (!token.trim()) {
+  // Scanner
+  const [showScanner, setShowScanner] = useState(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanned, setScanned] = useState(false);
+
+  useEffect(() => {
+    requestCameraPermission();
+  }, []);
+
+  const requestCameraPermission = async () => {
+    const { status } = await Camera.requestCameraPermissionsAsync();
+    setHasPermission(status === 'granted');
+  };
+
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    setScanned(true);
+    setShowScanner(false);
+    setToken(data);
+
+    // Auto-procesar el QR escaneado
+    setTimeout(() => {
+      handleJoinByToken(data);
+    }, 500);
+  };
+
+  const handleJoinByToken = async (tokenToProcess?: string) => {
+    const finalToken = tokenToProcess || token;
+
+    if (!finalToken.trim()) {
       Alert.alert('Código requerido', 'Ingresá el código de invitación');
       return;
     }
 
-    if (token.trim().length < 20) {
-      Alert.alert('Código inválido', 'El código de invitación parece ser demasiado corto. Verificá el código.');
+    let groupId = '';
+    let inviteId = '';
+
+    try {
+      if (finalToken.includes('splitty://') || finalToken.includes('groupId')) {
+        const url = new URL(finalToken.replace('splitty://', 'https://'));
+        groupId = url.searchParams.get('groupId') || '';
+        inviteId = url.searchParams.get('inviteId') || '';
+      } else {
+        Alert.alert('Formato incorrecto', 'Por favor escaneá el QR o pedí el link completo');
+        return;
+      }
+
+      if (!groupId || !inviteId) {
+        Alert.alert('Link inválido', 'El link no tiene el formato correcto');
+        return;
+      }
+    } catch (e) {
+      Alert.alert('Link inválido', 'No se pudo procesar el link de invitación');
       return;
     }
 
     setLoading(true);
     try {
-      await joinByInvite(token.trim());
+      await joinByInvite(groupId, inviteId);
       Alert.alert(
         '✓ ¡Éxito!',
         'Te uniste al grupo correctamente',
@@ -35,17 +79,14 @@ export default function UnirseGrupo({ navigation }: any) {
 
       if (status === 404 || body?.error === 'GROUP_NOT_FOUND') {
         Alert.alert('Grupo no existe', 'No se encontró un grupo con ese código de invitación. Verificá el código.');
-      } else if (body?.error === 'INVALID_OR_EXPIRED_TOKEN') {
-        Alert.alert('Código expirado', 'Este código de invitación ya expiró. Pedí uno nuevo al administrador del grupo.');
+      } else if (body?.error === 'INVITE_EXPIRED') {
+        Alert.alert('Invitación expirada', 'Esta invitación ya expiró. Pedí una nueva.');
+      } else if (body?.error === 'INVITE_NOT_FOUND') {
+        Alert.alert('Invitación no encontrada', 'No se encontró esta invitación.');
+      } else if (body?.error === 'INVITE_ALREADY_USED') {
+        Alert.alert('Invitación usada', 'Esta invitación ya fue utilizada.');
       } else if (body?.error === 'ALREADY_MEMBER') {
         Alert.alert('Ya sos miembro', 'Ya sos parte de este grupo.');
-      } else if (body?.error === 'VALIDATION_ERROR' && Array.isArray(body?.issues)) {
-        const issue = body.issues[0];
-        if (issue?.code === 'too_small' && issue?.minimum) {
-          Alert.alert('Código inválido', 'El código de invitación no tiene el formato esperado. Verificá el código.');
-        } else {
-          Alert.alert('Error', body?.message || body?.error || e?.message || 'Error al unir al grupo');
-        }
       } else {
         Alert.alert('Error', e?.response?.data?.error || e?.message || 'Error al unir al grupo');
       }
@@ -56,7 +97,6 @@ export default function UnirseGrupo({ navigation }: any) {
 
   const handlePasteFromClipboard = async () => {
     try {
-      // Try expo-clipboard first
       const Clipboard = await import('expo-clipboard').catch(() => null);
       if (Clipboard) {
         const text = await Clipboard.default.getStringAsync();
@@ -67,7 +107,6 @@ export default function UnirseGrupo({ navigation }: any) {
         }
       }
 
-      // Fallback to community clipboard
       const RNClipboard = await import('@react-native-clipboard/clipboard').catch(() => null);
       if (RNClipboard) {
         const text = await RNClipboard.default.getString();
@@ -85,9 +124,31 @@ export default function UnirseGrupo({ navigation }: any) {
     }
   };
 
+  const openScanner = async () => {
+    if (hasPermission === null) {
+      await requestCameraPermission();
+    }
+
+    if (hasPermission === false) {
+      Alert.alert(
+        'Permiso denegado',
+        'Necesitamos acceso a la cámara para escanear códigos QR',
+        [
+          { text: 'Cancelar' },
+          { text: 'Configuración', onPress: () => {
+            // Abrir configuración de la app
+          }}
+        ]
+      );
+      return;
+    }
+
+    setScanned(false);
+    setShowScanner(true);
+  };
+
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="arrow-left" size={24} color="#033E30" />
@@ -99,7 +160,6 @@ export default function UnirseGrupo({ navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Ilustración */}
         <View style={styles.illustration}>
           <View style={styles.illustrationCircle}>
             <Feather name="users" size={40} color="#033E30" />
@@ -108,21 +168,42 @@ export default function UnirseGrupo({ navigation }: any) {
 
         <Text style={styles.mainTitle}>Unite a un grupo</Text>
         <Text style={styles.mainSubtitle}>
-          Pedile al administrador del grupo que te comparta el código de invitación
+          Escaneá el código QR o pegá el link de invitación
         </Text>
 
-        {/* Card de ingreso */}
+        {/* Botón grande para escanear */}
+        <TouchableOpacity
+          style={styles.scanButtonLarge}
+          onPress={openScanner}
+          disabled={loading}
+        >
+          <View style={styles.scanIconCircle}>
+            <Feather name="camera" size={32} color="#033E30" />
+          </View>
+          <Text style={styles.scanButtonTitle}>Escanear código QR</Text>
+          <Text style={styles.scanButtonSubtitle}>
+            Apuntá la cámara al código QR del grupo
+          </Text>
+        </TouchableOpacity>
+
+        {/* Separador */}
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>O pegar link manualmente</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Código de invitación</Text>
+          <Text style={styles.cardTitle}>Link de invitación</Text>
           <Text style={styles.cardSubtitle}>
-            Ingresá o pegá el código que te compartieron
+            Pegá el link que te compartieron
           </Text>
 
           <View style={styles.inputContainer}>
             <Feather name="link" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Pegá el código aquí"
+              placeholder="splitty://join?groupId=..."
               value={token}
               onChangeText={setToken}
               editable={!loading}
@@ -138,7 +219,6 @@ export default function UnirseGrupo({ navigation }: any) {
             )}
           </View>
 
-          {/* Botón para pegar desde portapapeles */}
           <TouchableOpacity
             style={styles.pasteButton}
             onPress={handlePasteFromClipboard}
@@ -150,7 +230,7 @@ export default function UnirseGrupo({ navigation }: any) {
 
           <TouchableOpacity
             style={[styles.button, (loading || !token.trim()) && { opacity: 0.7 }]}
-            onPress={handleJoinByToken}
+            onPress={() => handleJoinByToken()}
             disabled={loading || !token.trim()}
           >
             {loading ? (
@@ -164,27 +244,63 @@ export default function UnirseGrupo({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {/* Info adicional */}
         <View style={styles.infoCard}>
           <Feather name="info" size={16} color="#666" style={{ marginRight: 8 }} />
           <Text style={styles.infoText}>
             Los códigos de invitación expiran después de un tiempo. Si el tuyo no funciona, pedí uno nuevo.
           </Text>
         </View>
-
-        {/* Ejemplo de código */}
-        <View style={styles.exampleCard}>
-          <Text style={styles.exampleTitle}>¿Cómo se ve un código?</Text>
-          <View style={styles.exampleCodeBox}>
-            <Text style={styles.exampleCode} selectable>
-              eyJhbGciOiJIUzI1NiIsInR5...
-            </Text>
-          </View>
-          <Text style={styles.exampleText}>
-            El código puede ser un enlace completo o un texto largo como el ejemplo de arriba
-          </Text>
-        </View>
       </ScrollView>
+
+      {/* Modal Scanner */}
+      <Modal
+        visible={showScanner}
+        animationType="slide"
+        onRequestClose={() => setShowScanner(false)}
+      >
+        <View style={styles.scannerContainer}>
+          <View style={styles.scannerHeader}>
+            <TouchableOpacity
+              onPress={() => setShowScanner(false)}
+              style={styles.closeButton}
+            >
+              <Feather name="x" size={28} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.scannerTitle}>Escanear código QR</Text>
+            <View style={{ width: 28 }} />
+          </View>
+
+          {hasPermission ? (
+            <CameraView
+              style={styles.camera}
+              facing="back"
+              onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+              barcodeScannerSettings={{
+                barcodeTypes: ['qr'],
+              }}
+            >
+              <View style={styles.scannerOverlay}>
+                <View style={styles.scannerFrame}>
+                  <View style={[styles.corner, styles.cornerTopLeft]} />
+                  <View style={[styles.corner, styles.cornerTopRight]} />
+                  <View style={[styles.corner, styles.cornerBottomLeft]} />
+                  <View style={[styles.corner, styles.cornerBottomRight]} />
+                </View>
+                <Text style={styles.scannerInstruction}>
+                  Centrá el código QR en el recuadro
+                </Text>
+              </View>
+            </CameraView>
+          ) : (
+            <View style={styles.noPermission}>
+              <Feather name="camera-off" size={48} color="#666" />
+              <Text style={styles.noPermissionText}>
+                No tenemos permiso para usar la cámara
+              </Text>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -238,6 +354,52 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 20,
     paddingHorizontal: 16
+  },
+  scanButtonLarge: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: '#033E30',
+    borderStyle: 'dashed'
+  },
+  scanIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#DFF4EA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16
+  },
+  scanButtonTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#033E30',
+    marginBottom: 8
+  },
+  scanButtonSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center'
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e6eee9'
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600'
   },
   card: {
     backgroundColor: '#fff',
@@ -330,35 +492,93 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16
   },
-  exampleCard: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e6eee9'
+  // Scanner styles
+  scannerContainer: {
+    flex: 1,
+    backgroundColor: '#000'
   },
-  exampleTitle: {
+  scannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(0,0,0,0.8)'
+  },
+  closeButton: {
+    padding: 4
+  },
+  scannerTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    color: '#033E30',
-    marginBottom: 12,
-    fontSize: 14
+    color: '#fff'
   },
-  exampleCodeBox: {
-    backgroundColor: '#f6f9f6',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e6eee9',
-    marginBottom: 8
+  camera: {
+    flex: 1
   },
-  exampleCode: {
-    fontFamily: 'monospace',
-    fontSize: 11,
-    color: '#033E30'
+  scannerOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  exampleText: {
-    fontSize: 12,
-    color: '#666',
-    lineHeight: 16
+  scannerFrame: {
+    width: 250,
+    height: 250,
+    position: 'relative'
+  },
+  corner: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderColor: '#fff'
+  },
+  cornerTopLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 4,
+    borderLeftWidth: 4
+  },
+  cornerTopRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 4,
+    borderRightWidth: 4
+  },
+  cornerBottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4
+  },
+  cornerBottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 4,
+    borderRightWidth: 4
+  },
+  scannerInstruction: {
+    marginTop: 40,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8
+  },
+  noPermission: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32
+  },
+  noPermissionText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center'
   }
 });

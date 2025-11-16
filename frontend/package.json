@@ -21,6 +21,8 @@
     "@react-navigation/native-stack": "latest",
     "axios": "latest",
     "expo": "54.0.23",
+    "expo-barcode-scanner": "^13.0.1",
+    "expo-camera": "~17.0.9",
     "expo-constants": "^18.0.10",
     "expo-file-system": "~18.0.4",
     "expo-image-picker": "~16.0.2",

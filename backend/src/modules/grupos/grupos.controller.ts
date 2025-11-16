@@ -71,8 +71,8 @@ export async function joinByInvite(req: Request, res: Response) {
   try {
     const firebaseUid = (req as AuthRequest).user?.uid;
     if (!firebaseUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
-    const { token } = (req as any).validated?.body || req.body;
-    const result = await svc.joinByInvite({ firebaseUid, token });
+    const { inviteId, groupId } = (req as any).validated?.body || req.body;
+    const result = await svc.joinByInvite({ firebaseUid, inviteId, grupoId: groupId });
     return res.json(result);
   } catch (e: any) {
     const status = e?.status || 500;
@@ -106,5 +106,3 @@ export async function obtenerBalance(req: Request, res: Response) {
     return res.status(status).json({ error: e?.message || 'INTERNAL_ERROR' });
   }
 }
-
-

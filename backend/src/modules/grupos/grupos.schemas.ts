@@ -22,12 +22,13 @@ export const crearInviteLinkSchema = z.object({
 });
 
 export const joinByInviteSchema = z.object({
-  body: z.object({ token: z.string().min(20) })
+  body: z.object({
+    inviteId: z.string().min(20),
+    groupId: z.string().uuid()
+  })
 });
 
 export const addMembersSchema = z.object({
   params: z.object({ grupoId: z.string().uuid() }),
   body: z.object({ memberIds: z.array(z.string().uuid()).min(1) })
 });
-
-

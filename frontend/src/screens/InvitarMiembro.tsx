@@ -1,4 +1,3 @@
-// frontend/src/screens/InvitarMiembro.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, ActivityIndicator, Share, ScrollView } from 'react-native';
 import { useInvitarMiembro } from '../viewmodels/useInvitarMiembro';
@@ -34,7 +33,7 @@ export default function InvitarMiembro({ route, navigation }: any) {
         return;
       }
     } catch (e) {}
-    
+
     try {
       const mod2 = await import('@react-native-clipboard/clipboard').catch(() => null);
       const RNClip = mod2 && (mod2.default || mod2);
@@ -44,13 +43,13 @@ export default function InvitarMiembro({ route, navigation }: any) {
         return;
       }
     } catch (e) {}
-    
+
     Alert.alert('Link de invitación', text);
   };
 
   const shareLink = async (text: string) => {
     try {
-      await Share.share({ 
+      await Share.share({
         message: `¡Unite a mi grupo "${nombre}" en Splitty!\n\n${text}`,
         title: `Invitación a ${nombre}`
       });
@@ -87,7 +86,6 @@ export default function InvitarMiembro({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="arrow-left" size={24} color="#033E30" />
@@ -100,7 +98,6 @@ export default function InvitarMiembro({ route, navigation }: any) {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-        {/* Card principal */}
         <View style={styles.card}>
           <View style={styles.cardTop}>
             <View style={styles.emojiCircle}>
@@ -112,7 +109,6 @@ export default function InvitarMiembro({ route, navigation }: any) {
             </View>
           </View>
 
-          {/* Link de invitación */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Link de invitación</Text>
             {loadingInvite ? (
@@ -125,15 +121,15 @@ export default function InvitarMiembro({ route, navigation }: any) {
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', marginTop: 8, gap: 8 }}>
-                  <TouchableOpacity 
-                    style={styles.smallButton} 
+                  <TouchableOpacity
+                    style={styles.smallButton}
                     onPress={() => copyToClipboard(inviteData.url ?? inviteData.token ?? '')}
                   >
                     <Feather name="copy" size={16} color="#033E30" style={{ marginRight: 6 }} />
                     <Text style={styles.smallButtonText}>Copiar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.smallButton} 
+                  <TouchableOpacity
+                    style={styles.smallButton}
                     onPress={() => shareLink(inviteData.url ?? inviteData.token ?? '')}
                   >
                     <Feather name="share-2" size={16} color="#033E30" style={{ marginRight: 6 }} />
@@ -146,14 +142,13 @@ export default function InvitarMiembro({ route, navigation }: any) {
             )}
           </View>
 
-          {/* Código QR */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Código QR</Text>
             <View style={{ marginTop: 12, alignItems: 'center' }}>
               {inviteData && QRComponent ? (
                 <View style={styles.qrContainer}>
-                  <QRComponent 
-                    value={inviteData.url ?? inviteData.token ?? 'https://splitty.app'} 
+                  <QRComponent
+                    value={inviteData.url ?? inviteData.token ?? 'https://splitty.app'}
                     size={160}
                     backgroundColor="#FFFFFF"
                     color="#033E30"
@@ -169,7 +164,6 @@ export default function InvitarMiembro({ route, navigation }: any) {
           </View>
         </View>
 
-        {/* Añadir amigos */}
         <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
           <Text style={styles.bigSectionTitle}>Añadir a un amigo</Text>
           <Text style={styles.sectionSubtitle}>Seleccioná un amigo para agregarlo directamente</Text>

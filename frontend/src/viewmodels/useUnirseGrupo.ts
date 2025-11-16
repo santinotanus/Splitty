@@ -1,8 +1,8 @@
 import * as groupsApi from '../api/groups';
 
 export function useUnirseGrupo() {
-  const joinByInvite = async (token: string) => {
-    return groupsApi.joinByInvite(token);
+  const joinByInvite = async (groupId: string, inviteId: string) => {
+    return groupsApi.joinByInvite(groupId, inviteId);
   };
 
   const joinGroup = async (grupoId: string) => {

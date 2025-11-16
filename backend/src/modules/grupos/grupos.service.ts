@@ -1,7 +1,7 @@
 import * as repo from './grupos.repo';
 import * as amigosRepo from '../amigos/amigos.repo';
 import * as commonRepo from '../../repositories/common.repo';
-import { signInviteToken, verifyInviteToken } from '../../utils/invites';
+import admin from 'firebase-admin';
 
 export async function crearGrupo({ firebaseUid, nombre, descripcion, initialMembers }: { firebaseUid: string; nombre: string; descripcion?: string; initialMembers?: string[] }) {
   const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
@@ -18,21 +18,16 @@ export async function crearGrupo({ firebaseUid, nombre, descripcion, initialMemb
     throw err;
   }
 
-  // Agregar creador como admin
   await repo.addMember(grupoId, userId, 'admin');
 
-  // Agregar miembros iniciales si se enviaron y son amigos del creador
   if (Array.isArray(initialMembers) && initialMembers.length > 0) {
-    // Normalizar: quitar duplicados y el propio creador
     const unique = Array.from(new Set(initialMembers)).filter((id) => id !== userId);
-    // Validar amistad
     const validations = await Promise.all(unique.map(async (candidateId) => {
       const ok = await amigosRepo.areAlreadyFriends(userId, candidateId);
       return ok ? candidateId : null;
     }));
 
     const validMemberIds = validations.filter((v): v is string => !!v);
-    // Insertar como miembros (ignorar errores por duplicados)
     await Promise.allSettled(validMemberIds.map((memberId) => repo.addMember(grupoId, memberId, 'miembro')));
   }
 
@@ -103,49 +98,158 @@ export async function unirseAGrupo({ firebaseUid, grupoId }: { firebaseUid: stri
   return { ok: true };
 }
 
-export async function crearInviteLink({ firebaseUid, grupoId, expiresInMinutes }: { firebaseUid: string; grupoId: string; expiresInMinutes?: number }) {
+export async function crearInviteLink({
+  firebaseUid,
+  grupoId,
+  expiresInMinutes
+}: {
+  firebaseUid: string;
+  grupoId: string;
+  expiresInMinutes?: number;
+}) {
   const inviterId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!inviterId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
     throw err;
   }
+
   const role = await repo.getMemberRole(grupoId, inviterId);
   if (!role || role !== 'admin') {
     const err = new Error('FORBIDDEN');
     (err as any).status = 403;
     throw err;
   }
-  const exp = Math.floor(Date.now() / 1000) + (expiresInMinutes ? expiresInMinutes * 60 : 60 * 60);
-  const token = signInviteToken({ grupoId, inviterId, exp });
-  const base = process.env.APP_BASE_URL || '';
-  const url = base ? `${base}/grupos/join?token=${encodeURIComponent(token)}` : undefined;
-  return { token, url, exp };
+
+  const db = admin.firestore();
+
+  const expirationMinutes = expiresInMinutes || 43200;
+  const expiresAt = new Date(Date.now() + expirationMinutes * 60 * 1000);
+
+  console.log('🔥 Creando invitación en Firestore...');
+  console.log('   Group ID:', grupoId);
+  console.log('   Inviter ID:', inviterId);
+  console.log('   Expires at:', expiresAt);
+
+  try {
+    const inviteRef = await db.collection('groupInvites').add({
+      groupId: grupoId,
+      inviterId: inviterId,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+      used: false
+    });
+
+    const inviteId = inviteRef.id;
+    console.log('✅ Invitación creada con ID:', inviteId);
+
+    const deepLink = `splitty://join?groupId=${grupoId}&inviteId=${inviteId}`;
+    const base = process.env.APP_BASE_URL || 'https://splitty.app';
+    const webUrl = `${base}/join?groupId=${grupoId}&inviteId=${inviteId}`;
+
+    return {
+      inviteId,
+      groupId: grupoId,
+      url: deepLink,
+      webUrl,
+      exp: Math.floor(expiresAt.getTime() / 1000),
+      expiresAt: expiresAt.toISOString()
+    };
+  } catch (error) {
+    console.error('❌ Error creando invitación en Firestore:', error);
+    throw error;
+  }
 }
 
-export async function joinByInvite({ firebaseUid, token }: { firebaseUid: string; token: string }) {
+export async function joinByInvite({
+  firebaseUid,
+  inviteId,
+  grupoId
+}: {
+  firebaseUid: string;
+  inviteId: string;
+  grupoId: string;
+}) {
   const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!userId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
     throw err;
   }
-  const payload = verifyInviteToken(token);
-  if (!payload) {
-    const err = new Error('INVALID_OR_EXPIRED_TOKEN');
-    (err as any).status = 400;
-    throw err;
+
+  const db = admin.firestore();
+
+  console.log('🔍 Buscando invitación:', inviteId);
+
+  try {
+    const inviteDoc = await db.collection('groupInvites').doc(inviteId).get();
+
+    if (!inviteDoc.exists) {
+      console.log('❌ Invitación no encontrada');
+      const err = new Error('INVITE_NOT_FOUND');
+      (err as any).status = 404;
+      throw err;
+    }
+
+    const invite = inviteDoc.data();
+    console.log('✅ Invitación encontrada:', invite);
+
+    if (!invite) {
+      const err = new Error('INVITE_NOT_FOUND');
+      (err as any).status = 404;
+      throw err;
+    }
+
+    if (invite.groupId !== grupoId) {
+      console.log('❌ Group ID no coincide');
+      const err = new Error('INVITE_GROUP_MISMATCH');
+      (err as any).status = 400;
+      throw err;
+    }
+
+    if (invite.expiresAt.toDate() < new Date()) {
+      console.log('❌ Invitación expirada');
+      const err = new Error('INVITE_EXPIRED');
+      (err as any).status = 400;
+      throw err;
+    }
+
+    if (invite.used) {
+      console.log('❌ Invitación ya usada');
+      const err = new Error('INVITE_ALREADY_USED');
+      (err as any).status = 400;
+      throw err;
+    }
+
+    const existe = await commonRepo.findGroupById(grupoId);
+    if (!existe) {
+      const err = new Error('GROUP_NOT_FOUND');
+      (err as any).status = 404;
+      throw err;
+    }
+
+    const esMiembro = await commonRepo.isMember(grupoId, userId);
+    if (esMiembro) {
+      console.log('ℹ️ Usuario ya es miembro');
+      return { ok: true, alreadyMember: true };
+    }
+
+    console.log('➕ Agregando usuario al grupo...');
+    await repo.addMember(grupoId, userId, 'miembro');
+
+    console.log('🔒 Marcando invitación como usada...');
+    await inviteDoc.ref.update({
+      used: true,
+      usedBy: userId,
+      usedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log('✅ Usuario unido al grupo exitosamente');
+    return { ok: true, alreadyMember: false };
+  } catch (error) {
+    console.error('❌ Error en joinByInvite:', error);
+    throw error;
   }
-  const existe = await commonRepo.findGroupById(payload.grupoId);
-  if (!existe) {
-    const err = new Error('GROUP_NOT_FOUND');
-    (err as any).status = 404;
-    throw err;
-  }
-  const esMiembro = await commonRepo.isMember(payload.grupoId, userId);
-  if (esMiembro) return { ok: true };
-  await repo.addMember(payload.grupoId, userId, 'miembro');
-  return { ok: true };
 }
 
 export async function addMembers({ firebaseUid, grupoId, memberIds }: { firebaseUid: string; grupoId: string; memberIds: string[] }) {
@@ -167,7 +271,6 @@ export async function addMembers({ firebaseUid, grupoId, memberIds }: { firebase
     return isFriend ? candidateId : null;
   }));
   const validMemberIds = validations.filter((v): v is string => !!v);
-  // Debugging/logging: log validation results to help track why members may not be added
   try {
     console.log('addMembers: adminId=', adminId, 'grupoId=', grupoId, 'requested=', memberIds, 'unique=', unique, 'validCandidates=', validMemberIds);
     await Promise.allSettled(validMemberIds.map(async (memberId) => {
@@ -202,5 +305,3 @@ export async function obtenerBalance({ firebaseUid, grupoId }: { firebaseUid: st
   }
   return await repo.listBalances(grupoId);
 }
-
-

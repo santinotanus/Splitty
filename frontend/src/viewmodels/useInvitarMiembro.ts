@@ -1,4 +1,3 @@
-// frontend/src/viewmodels/useInvitarMiembro.ts
 import { useEffect, useState } from 'react';
 import * as groupsApi from '../api/groups';
 import * as friendsApi from '../api/friends';
@@ -13,7 +12,6 @@ export function useInvitarMiembro(grupoId?: string) {
     if (!grupoId) return;
     setLoadingInvite(true);
     try {
-      // Generar link con expiración de 30 días (43200 minutos)
       const res = await groupsApi.createInviteLink(grupoId, 43200);
       setInviteData(res);
     } catch (e) {

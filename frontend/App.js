@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert, Linking } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import PantallaBienvenida from './src/screens/PantallaBienvenida';
 import InicioSesion from './src/screens/InicioSesion';
 import CrearCuenta from './src/screens/CrearCuenta';
@@ -12,11 +13,118 @@ import AddGasto from './src/screens/AddGasto';
 import MainTabs from './src/navigation/MainTabs';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ProfileProvider } from './src/contexts/ProfileContext';
+import { api } from './src/api/client';
 
 const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
   const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    const handleDeepLink = async (event) => {
+      try {
+        const url = event?.url || event;
+        console.log('🔗 Deep link recibido:', url);
+
+        const urlObj = new URL(url);
+        const path = urlObj.hostname || urlObj.pathname.replace('//', '');
+
+        if (path === 'join') {
+          const groupId = urlObj.searchParams.get('groupId');
+          const inviteId = urlObj.searchParams.get('inviteId');
+
+          console.log('📋 Datos extraídos:', { groupId, inviteId });
+
+          if (!groupId || !inviteId) {
+            Alert.alert('Link inválido', 'Este link de invitación no es válido');
+            return;
+          }
+
+          if (!user) {
+            await AsyncStorage.setItem('pendingInvite', JSON.stringify({ groupId, inviteId }));
+            Alert.alert('Inicia sesión', 'Primero debes iniciar sesión para unirte al grupo');
+            return;
+          }
+
+          handleJoinGroup(groupId, inviteId);
+        }
+      } catch (error) {
+        console.error('❌ Error procesando deep link:', error);
+        Alert.alert('Error', 'No se pudo procesar la invitación');
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log('🚀 App abierta con deep link:', url);
+        handleDeepLink(url);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      checkPendingInvite();
+    }
+  }, [user]);
+
+  const checkPendingInvite = async () => {
+    try {
+      const pending = await AsyncStorage.getItem('pendingInvite');
+      if (pending) {
+        const { groupId, inviteId } = JSON.parse(pending);
+        await AsyncStorage.removeItem('pendingInvite');
+        console.log('📌 Procesando invitación pendiente:', { groupId, inviteId });
+        handleJoinGroup(groupId, inviteId);
+      }
+    } catch (error) {
+      console.error('❌ Error checking pending invite:', error);
+    }
+  };
+
+  const handleJoinGroup = async (groupId, inviteId) => {
+    try {
+      console.log('🔄 Uniéndose al grupo:', { groupId, inviteId });
+
+      const response = await api.post('/grupos/join-by-invite', {
+        groupId,
+        inviteId
+      });
+
+      console.log('✅ Respuesta del servidor:', response.data);
+
+      if (response.data.alreadyMember) {
+        Alert.alert('Ya sos miembro', 'Ya formás parte de este grupo');
+      } else {
+        Alert.alert(
+          '¡Bienvenido!',
+          'Te uniste al grupo correctamente',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('❌ Error joining group:', error);
+
+      let message = 'No se pudo unir al grupo';
+      const errorCode = error?.response?.data?.error;
+
+      if (errorCode === 'INVITE_EXPIRED') {
+        message = 'Esta invitación ya expiró. Pedí una nueva al administrador.';
+      } else if (errorCode === 'INVITE_NOT_FOUND') {
+        message = 'Invitación no encontrada. Verificá el código.';
+      } else if (errorCode === 'INVITE_ALREADY_USED') {
+        message = 'Esta invitación ya fue utilizada.';
+      } else if (errorCode === 'GROUP_NOT_FOUND') {
+        message = 'El grupo ya no existe.';
+      }
+
+      Alert.alert('Error', message);
+    }
+  };
 
   if (isLoading) {
     return (

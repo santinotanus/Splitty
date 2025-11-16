@@ -94,4 +94,17 @@ export async function addMembers(req: Request, res: Response) {
   }
 }
 
+export async function obtenerBalance(req: Request, res: Response) {
+  try {
+    const firebaseUid = (req as AuthRequest).user?.uid;
+    if (!firebaseUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
+    const { grupoId } = (req as any).validated?.params || req.params;
+    const rows = await svc.obtenerBalance({ firebaseUid, grupoId });
+    return res.json(rows);
+  } catch (e: any) {
+    const status = e?.status || 500;
+    return res.status(status).json({ error: e?.message || 'INTERNAL_ERROR' });
+  }
+}
+
 

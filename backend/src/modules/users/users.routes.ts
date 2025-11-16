@@ -8,5 +8,8 @@ const r = Router();
 
 r.get('/me', requireAuth, ctrl.getMe);
 r.put('/me', requireAuth, validate(updateMeSchema), ctrl.updateMe);
+// Buscar usuario por email (p. ej. para invitar/agregar amigos)
+// Ejemplo: GET /users/search?email=correo@dominio.com
+r.get('/search', requireAuth, ctrl.findByEmail);
 
 export default r;

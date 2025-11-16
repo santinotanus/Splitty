@@ -12,3 +12,10 @@ export async function updateUserName(firebase_uid: string, nombre: string) {
     .where({ firebase_uid })
     .update({ nombre });
 }
+
+export async function findUserByEmail(correo: string) {
+  return db('dbo.usuarios')
+    .select('id', 'firebase_uid', 'nombre', 'correo', 'fechaNacimiento')
+    .where({ correo })
+    .first();
+}

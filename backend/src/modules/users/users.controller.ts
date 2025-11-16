@@ -40,3 +40,16 @@ export async function updateMe(req: Request, res: Response) {
     res.status(500).json({ error: 'INTERNAL_ERROR' });
   }
 }
+
+export async function findByEmail(req: Request, res: Response) {
+  try {
+    const { email } = req.query as any;
+    if (!email) return res.status(400).json({ error: 'MISSING_EMAIL' });
+    const user = await svc.findByEmail({ email: String(email) });
+    if (!user) return res.status(404).json({ error: 'NOT_FOUND' });
+    return res.json(user);
+  } catch (e: any) {
+    console.error('Error en findByEmail:', e);
+    return res.status(500).json({ error: 'INTERNAL_ERROR' });
+  }
+}

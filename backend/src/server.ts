@@ -19,7 +19,7 @@ function getLocalIP(): string {
   return 'localhost';
 }
 
-const localIP = "192.168.1.34"; //HARDCODEADO PARA IP ADRIEL!!!
+const localIP = "192.168.1.3"; //HARDCODEADO PARA IP ADRIEL!!!
 
 app.listen(port, '0.0.0.0', () => {
   console.log('================================');

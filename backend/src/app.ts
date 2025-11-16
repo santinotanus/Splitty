@@ -6,6 +6,9 @@ import usersRoutes from './modules/users/users.routes';
 import authRoutes from './modules/auth/auth.routes';
 import amigosRoutes from './modules/amigos/amigos.routes';
 import gruposRoutes from './modules/grupos/grupos.routes';
+import gastosRoutes from './modules/gastos/gastos.routes';
+import balancesRoutes from './modules/balances/balances.routes';
+import liquidacionesRoutes from './modules/liquidaciones/liquidaciones.routes';
 
 
 const app = express();
@@ -36,6 +39,9 @@ app.use('/users', usersRoutes);
 app.use('/auth', authRoutes);
 app.use('/amigos', amigosRoutes);
 app.use('/grupos', gruposRoutes);
+app.use('/groups/:groupId/expenses', gastosRoutes);
+app.use('/groups/:groupId', balancesRoutes);
+app.use('/groups/:groupId', liquidacionesRoutes);
 
 
 app.use((req, res) => {

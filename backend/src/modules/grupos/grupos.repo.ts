@@ -1,10 +1,5 @@
 import { db } from '../../config/db';
 
-export async function getUserIdByFirebaseUid(firebaseUid: string) {
-  const row = await db('dbo.usuarios').select('id').where({ firebase_uid: firebaseUid }).first();
-  return row?.id as string | undefined;
-}
-
 export async function createGroup(nombre: string, descripcion?: string) {
   const result = await db.raw(
     `INSERT INTO dbo.grupos (id, nombre, descripcion, fecha_creacion)
@@ -21,10 +16,6 @@ export async function addMember(grupoId: string, usuarioId: string, rol: string 
   return db('dbo.miembros_grupo').insert({ grupo_id: grupoId, usuario_id: usuarioId, rol, fecha_creacion: db.raw('SYSUTCDATETIME()') });
 }
 
-export async function isMember(grupoId: string, usuarioId: string) {
-  const row = await db('dbo.miembros_grupo').select('grupo_id').where({ grupo_id: grupoId, usuario_id: usuarioId }).first();
-  return !!row;
-}
 
 export async function listMembers(grupoId: string) {
   return db('dbo.miembros_grupo as m')
@@ -34,9 +25,6 @@ export async function listMembers(grupoId: string) {
     .orderBy('m.fecha_creacion', 'asc');
 }
 
-export async function findGroupById(grupoId: string) {
-  return db('dbo.grupos').select('id', 'nombre', 'descripcion', 'fecha_creacion').where({ id: grupoId }).first();
-}
 
 export async function getMemberRole(grupoId: string, usuarioId: string) {
   const row = await db('dbo.miembros_grupo').select('rol').where({ grupo_id: grupoId, usuario_id: usuarioId }).first();

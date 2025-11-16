@@ -1,7 +1,8 @@
 import * as repo from './amigos.repo';
+import * as commonRepo from '../../repositories/common.repo';
 
 export async function enviarSolicitud({ firebaseUid, receptorId }: { firebaseUid: string; receptorId: string }) {
-  const solicitanteId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const solicitanteId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!solicitanteId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
@@ -36,13 +37,13 @@ export async function enviarSolicitud({ firebaseUid, receptorId }: { firebaseUid
 }
 
 export async function listarPendientesRecibidas({ firebaseUid }: { firebaseUid: string }) {
-  const receptorId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const receptorId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!receptorId) return [];
   return repo.listPendingReceived(receptorId);
 }
 
 export async function aceptarSolicitud({ firebaseUid, solicitudId }: { firebaseUid: string; solicitudId: string }) {
-  const myId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const myId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!myId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
@@ -72,7 +73,7 @@ export async function aceptarSolicitud({ firebaseUid, solicitudId }: { firebaseU
 }
 
 export async function rechazarSolicitud({ firebaseUid, solicitudId }: { firebaseUid: string; solicitudId: string }) {
-  const myId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const myId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!myId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
@@ -101,7 +102,7 @@ export async function rechazarSolicitud({ firebaseUid, solicitudId }: { firebase
 }
 
 export async function listarAmigos({ firebaseUid }: { firebaseUid: string }) {
-  const myId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const myId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!myId) return [];
   return repo.listFriends(myId);
 }

@@ -1,10 +1,5 @@
 import { db } from '../../config/db';
 
-export async function getUserIdByFirebaseUid(firebaseUid: string) {
-  const row = await db('dbo.usuarios').select('id').where({ firebase_uid: firebaseUid }).first();
-  return row?.id as string | undefined;
-}
-
 export async function areAlreadyFriends(userIdA: string, userIdB: string) {
   const [low, high] = userIdA < userIdB ? [userIdA, userIdB] : [userIdB, userIdA];
   const row = await db('dbo.amistades')
@@ -54,8 +49,22 @@ export async function updateSolicitudEstado(id: string, estado: 'aceptada' | 're
 }
 
 export async function insertAmistad(userIdA: string, userIdB: string) {
-  const [low, high] = userIdA < userIdB ? [userIdA, userIdB] : [userIdB, userIdA];
-  return db('dbo.amistades').insert({ usuario_a: low, usuario_b: high, fecha_alta: db.raw('SYSUTCDATETIME()') });
+  // Usar SQL para ordenar correctamente los UNIQUEIDENTIFIERs
+  // SQL Server compara UNIQUEIDENTIFIERs de manera diferente a JavaScript
+  const result = await db.raw(
+    `INSERT INTO dbo.amistades (usuario_a, usuario_b, fecha_alta)
+     SELECT 
+       CASE WHEN ? < ? THEN ? ELSE ? END,
+       CASE WHEN ? < ? THEN ? ELSE ? END,
+       SYSUTCDATETIME()
+     WHERE NOT EXISTS (
+       SELECT 1 FROM dbo.amistades 
+       WHERE (usuario_a = ? AND usuario_b = ?) 
+          OR (usuario_a = ? AND usuario_b = ?)
+     )`,
+    [userIdA, userIdB, userIdA, userIdB, userIdA, userIdB, userIdB, userIdA, userIdA, userIdB, userIdB, userIdA]
+  );
+  return result;
 }
 
 export async function listFriends(userId: string) {

@@ -1,9 +1,10 @@
 import * as repo from './grupos.repo';
 import * as amigosRepo from '../amigos/amigos.repo';
+import * as commonRepo from '../../repositories/common.repo';
 import { signInviteToken, verifyInviteToken } from '../../utils/invites';
 
 export async function crearGrupo({ firebaseUid, nombre, descripcion, initialMembers }: { firebaseUid: string; nombre: string; descripcion?: string; initialMembers?: string[] }) {
-  const userId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!userId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
@@ -39,19 +40,19 @@ export async function crearGrupo({ firebaseUid, nombre, descripcion, initialMemb
 }
 
 export async function obtenerMiembros({ firebaseUid, grupoId }: { firebaseUid: string; grupoId: string }) {
-  const userId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!userId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
     throw err;
   }
-  const existe = await repo.findGroupById(grupoId);
+  const existe = await commonRepo.findGroupById(grupoId);
   if (!existe) {
     const err = new Error('GROUP_NOT_FOUND');
     (err as any).status = 404;
     throw err;
   }
-  const esMiembro = await repo.isMember(grupoId, userId);
+  const esMiembro = await commonRepo.isMember(grupoId, userId);
   if (!esMiembro) {
     const err = new Error('FORBIDDEN');
     (err as any).status = 403;
@@ -61,7 +62,7 @@ export async function obtenerMiembros({ firebaseUid, grupoId }: { firebaseUid: s
 }
 
 export async function obtenerMisGrupos({ firebaseUid }: { firebaseUid: string }) {
-  const userId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!userId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
@@ -71,19 +72,19 @@ export async function obtenerMisGrupos({ firebaseUid }: { firebaseUid: string })
 }
 
 export async function unirseAGrupo({ firebaseUid, grupoId }: { firebaseUid: string; grupoId: string }) {
-  const userId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!userId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
     throw err;
   }
-  const existe = await repo.findGroupById(grupoId);
+  const existe = await commonRepo.findGroupById(grupoId);
   if (!existe) {
     const err = new Error('GROUP_NOT_FOUND');
     (err as any).status = 404;
     throw err;
   }
-  const esMiembro = await repo.isMember(grupoId, userId);
+  const esMiembro = await commonRepo.isMember(grupoId, userId);
   if (esMiembro) {
     const err = new Error('ALREADY_MEMBER');
     (err as any).status = 409;
@@ -103,7 +104,7 @@ export async function unirseAGrupo({ firebaseUid, grupoId }: { firebaseUid: stri
 }
 
 export async function crearInviteLink({ firebaseUid, grupoId, expiresInMinutes }: { firebaseUid: string; grupoId: string; expiresInMinutes?: number }) {
-  const inviterId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const inviterId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!inviterId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
@@ -123,7 +124,7 @@ export async function crearInviteLink({ firebaseUid, grupoId, expiresInMinutes }
 }
 
 export async function joinByInvite({ firebaseUid, token }: { firebaseUid: string; token: string }) {
-  const userId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!userId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
@@ -135,20 +136,20 @@ export async function joinByInvite({ firebaseUid, token }: { firebaseUid: string
     (err as any).status = 400;
     throw err;
   }
-  const existe = await repo.findGroupById(payload.grupoId);
+  const existe = await commonRepo.findGroupById(payload.grupoId);
   if (!existe) {
     const err = new Error('GROUP_NOT_FOUND');
     (err as any).status = 404;
     throw err;
   }
-  const esMiembro = await repo.isMember(payload.grupoId, userId);
+  const esMiembro = await commonRepo.isMember(payload.grupoId, userId);
   if (esMiembro) return { ok: true };
   await repo.addMember(payload.grupoId, userId, 'miembro');
   return { ok: true };
 }
 
 export async function addMembers({ firebaseUid, grupoId, memberIds }: { firebaseUid: string; grupoId: string; memberIds: string[] }) {
-  const adminId = await repo.getUserIdByFirebaseUid(firebaseUid);
+  const adminId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
   if (!adminId) {
     const err = new Error('USER_NOT_FOUND');
     (err as any).status = 404;
@@ -167,7 +168,7 @@ export async function addMembers({ firebaseUid, grupoId, memberIds }: { firebase
   }));
   const validMemberIds = validations.filter((v): v is string => !!v);
   await Promise.allSettled(validMemberIds.map(async (memberId) => {
-    const exists = await repo.isMember(grupoId, memberId);
+    const exists = await commonRepo.isMember(grupoId, memberId);
     if (!exists) await repo.addMember(grupoId, memberId, 'miembro');
   }));
   return { added: validMemberIds.length };

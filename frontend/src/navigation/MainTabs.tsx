@@ -1,46 +1,53 @@
+// navigation/MainTabs.tsx
 import React from 'react';
 import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
 import Inicio from '../screens/Inicio';
 import Gastos from '../screens/Gastos';
 import Amigos from '../screens/Amigos';
 
-const Tab = createBottomTabNavigator<any>();
-const Stack = createNativeStackNavigator<any>();
+// ---------- STACKS POR CADA TAB ----------
+const InicioStackNav = createNativeStackNavigator();
+const GastosStackNav = createNativeStackNavigator();
+const AmigosStackNav = createNativeStackNavigator();
 
 function InicioStack() {
     return (
-        <Stack.Navigator
+        <InicioStackNav.Navigator
             id={undefined}
             screenOptions={{ headerShown: false }}
         >
-            <Stack.Screen name="InicioHome" component={Inicio} />
-        </Stack.Navigator>
+            <InicioStackNav.Screen name="InicioHome" component={Inicio} />
+        </InicioStackNav.Navigator>
     );
 }
 
 function GastosStack() {
     return (
-        <Stack.Navigator
+        <GastosStackNav.Navigator
             id={undefined}
             screenOptions={{ headerShown: false }}
         >
-            <Stack.Screen name="GastosHome" component={Gastos} />
-        </Stack.Navigator>
+            <GastosStackNav.Screen name="GastosHome" component={Gastos} />
+        </GastosStackNav.Navigator>
     );
 }
 
 function AmigosStack() {
     return (
-        <Stack.Navigator
+        <AmigosStackNav.Navigator
             id={undefined}
             screenOptions={{ headerShown: false }}
         >
-            <Stack.Screen name="AmigosHome" component={Amigos} />
-        </Stack.Navigator>
+            <AmigosStackNav.Screen name="AmigosHome" component={Amigos} />
+        </AmigosStackNav.Navigator>
     );
 }
+
+// ---------- TABS ----------
+const Tab = createBottomTabNavigator();
 
 export default function MainTabs() {
     return (
@@ -49,14 +56,26 @@ export default function MainTabs() {
             initialRouteName="Inicio"
             screenOptions={{
                 headerShown: false,
+                tabBarStyle: {
+                    backgroundColor: '#E6F4F1',
+                    height: 70,
+                    paddingBottom: 8,
+                    paddingTop: 6,
+                    borderTopWidth: 0,
+                    elevation: 0,
+                },
+                tabBarLabelStyle: {
+                    fontSize: 12,
+                },
                 tabBarActiveTintColor: '#0A4930',
-                tabBarInactiveTintColor: '#444',
+                tabBarInactiveTintColor: '#444444',
             }}
         >
             <Tab.Screen
                 name="Inicio"
                 component={InicioStack}
                 options={{
+                    tabBarLabel: 'Inicio',
                     tabBarIcon: ({ color }) => (
                         <Text style={{ fontSize: 20, color }}>🏠</Text>
                     ),
@@ -67,6 +86,7 @@ export default function MainTabs() {
                 name="Gastos"
                 component={GastosStack}
                 options={{
+                    tabBarLabel: 'Gastos',
                     tabBarIcon: ({ color }) => (
                         <Text style={{ fontSize: 20, color }}>💵</Text>
                     ),
@@ -77,6 +97,7 @@ export default function MainTabs() {
                 name="Amigos"
                 component={AmigosStack}
                 options={{
+                    tabBarLabel: 'Amigos',
                     tabBarIcon: ({ color }) => (
                         <Text style={{ fontSize: 20, color }}>👥</Text>
                     ),

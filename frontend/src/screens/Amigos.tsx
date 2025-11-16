@@ -1,3 +1,4 @@
+// screens/Amigos.tsx
 import React, { useState } from 'react';
 import {
     View,
@@ -8,106 +9,134 @@ import {
     Modal,
     TouchableWithoutFeedback,
     TextInput,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Header from '../components/Header';
-
-type Friend = {
-    id: string;
-    name: string;
-    groupsInCommon: number;
-    online: boolean;
-};
-
-const FRIENDS: Friend[] = [
-    { id: '1', name: 'María González',  groupsInCommon: 2, online: true },
-    { id: '2', name: 'Carlos Rodríguez', groupsInCommon: 1, online: false },
-    { id: '3', name: 'Ana López',       groupsInCommon: 3, online: true },
-    { id: '4', name: 'Pedro Martínez',  groupsInCommon: 1, online: false },
-];
+import { useAmigos } from '../viewmodels/useAmigos';
 
 const PRIMARY = '#0A4930';
 const BG = '#E6F4F1';
 const CARD = '#FFFFFF';
 
 export default function Amigos({ navigation }: any) {
+    const { friends, loading, error, addFriend } = useAmigos();
+
     const [addFriendVisible, setAddFriendVisible] = useState(false);
     const [myQRVisible, setMyQRVisible] = useState(false);
-    const [searchText, setSearchText] = useState('');
+    const [friendIdToAdd, setFriendIdToAdd] = useState('');
+
+    const handleAddFriend = async () => {
+        const id = friendIdToAdd.trim();
+        if (!id) {
+            Alert.alert('Atención', 'Ingresá el ID del amigo primero.');
+            return;
+        }
+
+        try {
+            await addFriend(id);
+            setFriendIdToAdd('');
+            setAddFriendVisible(false);
+            // si querés, podés sumar un toast o Alert de éxito
+            // Alert.alert('Listo', 'Amigo agregado correctamente');
+        } catch (err: any) {
+            console.error(err);
+            const backendMsg =
+                'No se pudo agregar el amigo. Verificá el ID.';
+
+            Alert.alert('Error', backendMsg);
+        }
+    };
+
 
     return (
         <View style={styles.container}>
-            {/* Header en modo "amigos" */}
             <Header navigation={navigation} variant="amigos" />
 
-            {/* Contenido principal */}
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* Botón "Mi código QR" */}
-                <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={() => setMyQRVisible(true)}
-                >
-                    <MaterialCommunityIcons
-                        name="qrcode"
-                        size={20}
-                        color="#FFFFFF"
-                        style={{ marginRight: 8 }}
-                    />
-                    <Text style={styles.primaryButtonText}>Mi código QR</Text>
-                </TouchableOpacity>
-
-                {/* Botón "Agregar amigo" */}
-                <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={() => setAddFriendVisible(true)}
-                >
-                    <Ionicons
-                        name="person-add-outline"
-                        size={18}
-                        color="#2E3D37"
-                        style={{ marginRight: 8 }}
-                    />
-                    <Text style={styles.secondaryButtonText}>Agregar amigo</Text>
-                </TouchableOpacity>
-
-                {/* Cabecera de lista */}
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Mis amigos</Text>
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{FRIENDS.length} amigos</Text>
-                    </View>
+            {loading ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color={PRIMARY} />
                 </View>
+            ) : error ? (
+                <View style={styles.center}>
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            ) : (
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    {/* Botón "Mi código QR" */}
+                    <TouchableOpacity
+                        style={styles.primaryButton}
+                        onPress={() => setMyQRVisible(true)}
+                    >
+                        <MaterialCommunityIcons
+                            name="qrcode"
+                            size={20}
+                            color="#FFFFFF"
+                            style={{ marginRight: 8 }}
+                        />
+                        <Text style={styles.primaryButtonText}>Mi código QR</Text>
+                    </TouchableOpacity>
 
-                {/* Lista de amigos (mock) */}
-                {FRIENDS.map(friend => (
-                    <View key={friend.id} style={styles.friendCard}>
-                        <View style={styles.friendRow}>
-                            <View style={styles.friendLeft}>
-                                <View style={styles.friendAvatarWrapper}>
-                                    <View style={styles.avatarCircleSmall}>
-                                        <Text style={styles.avatarInitialSmall}>
-                                            {friend.name.charAt(0)}
-                                        </Text>
-                                    </View>
-                                    {friend.online && <View style={styles.onlineDot} />}
-                                </View>
+                    {/* Botón "Agregar amigo" */}
+                    <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={() => setAddFriendVisible(true)}
+                    >
+                        <Ionicons
+                            name="person-add-outline"
+                            size={18}
+                            color="#2E3D37"
+                            style={{ marginRight: 8 }}
+                        />
+                        <Text style={styles.secondaryButtonText}>Agregar amigo</Text>
+                    </TouchableOpacity>
 
-                                <View>
-                                    <Text style={styles.friendName}>{friend.name}</Text>
-                                    <Text style={styles.friendSubtitle}>
-                                        {friend.groupsInCommon} grupo
-                                        {friend.groupsInCommon !== 1 && 's'} en común
-                                    </Text>
-                                </View>
-                            </View>
-
-                            <TouchableOpacity>
-                                <Ionicons name="trash-outline" size={20} color="#A1A8AA" />
-                            </TouchableOpacity>
+                    {/* Cabecera de lista */}
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Mis amigos</Text>
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{friends.length} amigos</Text>
                         </View>
                     </View>
-                ))}
-            </ScrollView>
+
+                    {/* Lista de amigos */}
+                    {friends.map(friend => (
+                        <View key={friend.id} style={styles.friendCard}>
+                            <View style={styles.friendRow}>
+                                <View style={styles.friendLeft}>
+                                    <View style={styles.friendAvatarWrapper}>
+                                        <View style={styles.avatarCircleSmall}>
+                                            <Text style={styles.avatarInitialSmall}>
+                                                {(friend.name || '?').charAt(0)}
+                                            </Text>
+                                        </View>
+                                        {friend.online && <View style={styles.onlineDot} />}
+                                    </View>
+
+                                    <View>
+                                        <Text style={styles.friendName}>{friend.name}</Text>
+                                        <Text style={styles.friendSubtitle}>
+                                            {friend.groupsInCommon} grupo
+                                            {friend.groupsInCommon !== 1 && 's'} en común
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <TouchableOpacity>
+                                    <Ionicons name="trash-outline" size={20} color="#A1A8AA" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ))}
+
+                    {friends.length === 0 && (
+                        <Text style={styles.emptyFilteredText}>
+                            Todavía no tenés amigos agregados.
+                        </Text>
+                    )}
+                </ScrollView>
+            )}
 
             {/* MODAL: Agregar amigo */}
             <Modal
@@ -136,10 +165,10 @@ export default function Amigos({ navigation }: any) {
                                     />
                                     <TextInput
                                         style={styles.searchInput}
-                                        placeholder="Buscar por nombre o ID..."
+                                        placeholder="Ingresar ID del amigo..."
                                         placeholderTextColor="#A0A7A3"
-                                        value={searchText}
-                                        onChangeText={setSearchText}
+                                        value={friendIdToAdd}
+                                        onChangeText={setFriendIdToAdd}
                                     />
                                 </View>
 
@@ -154,7 +183,10 @@ export default function Amigos({ navigation }: any) {
                                         <Text style={styles.scanButtonText}>Escanear QR</Text>
                                     </TouchableOpacity>
 
-                                    <TouchableOpacity style={styles.confirmAddButton}>
+                                    <TouchableOpacity
+                                        style={styles.confirmAddButton}
+                                        onPress={handleAddFriend}
+                                    >
                                         <Text style={styles.confirmAddButtonText}>Agregar</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -182,7 +214,6 @@ export default function Amigos({ navigation }: any) {
                                     </TouchableOpacity>
                                 </View>
 
-                                {/* Placeholder QR */}
                                 <View style={styles.qrPlaceholder}>
                                     <MaterialCommunityIcons
                                         name="qrcode"
@@ -214,6 +245,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 12,
         paddingBottom: 24,
+    },
+
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorText: {
+        color: '#B00020',
+    },
+    emptyFilteredText: {
+        textAlign: 'center',
+        color: '#666',
+        marginTop: 16,
     },
 
     primaryButton: {
@@ -322,7 +367,6 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
 
-    // Modales
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.25)',
@@ -330,7 +374,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 24,
     },
-
     addFriendCard: {
         width: '100%',
         backgroundColor: '#FFFFFF',

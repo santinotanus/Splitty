@@ -13,15 +13,33 @@ import {
     Alert,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import Header from '../components/Header';
 import { useAmigos } from '../viewmodels/useAmigos';
+
+// 🔐 Ajustá este import según tu proyecto
+import { useAuth } from '../contexts/AuthContext';
 
 const PRIMARY = '#0A4930';
 const BG = '#E6F4F1';
 const CARD = '#FFFFFF';
 
 export default function Amigos({ navigation }: any) {
-    const { friends, loading, error, addFriend, inviteByEmail, pendingRequests, pendingLoading, acceptPending, rejectPending } = useAmigos();
+    const {
+        friends,
+        loading,
+        error,
+        addFriend,
+        inviteByEmail,
+        pendingRequests,
+        pendingLoading,
+        acceptPending,
+        rejectPending,
+    } = useAmigos();
+
+    // Usuario logueado (ajustar según tu contexto real)
+    const { user } = useAuth(); // user.id, user.name, user.email, etc.
+    const qrValue = user ? `splitty:user:${user.uid}` : '';
 
     const [addFriendVisible, setAddFriendVisible] = useState(false);
     const [myQRVisible, setMyQRVisible] = useState(false);
@@ -48,7 +66,6 @@ export default function Amigos({ navigation }: any) {
         } catch (err: any) {
             console.error('Error al invitar/agregar amigo', err);
 
-            // Mapear errores comunes del backend a mensajes legibles
             const msgCode = err?.response?.data?.error || err?.message || String(err);
             let backendMsg = 'No se pudo agregar el amigo. Verificá el dato ingresado.';
             if (msgCode === 'USER_NOT_FOUND' || msgCode === 'NOT_FOUND') {
@@ -64,7 +81,6 @@ export default function Amigos({ navigation }: any) {
             Alert.alert('Error', backendMsg);
         }
     };
-
 
     return (
         <View style={styles.container}>
@@ -85,27 +101,40 @@ export default function Amigos({ navigation }: any) {
                         <View style={{ paddingVertical: 12 }}>
                             <ActivityIndicator color={PRIMARY} />
                         </View>
-                    ) : pendingRequests.length > 0 && (
-                        <View style={{ marginBottom: 16 }}>
-                            <Text style={styles.sectionTitle}>Solicitudes recibidas</Text>
-                            {pendingRequests.map((s: any) => (
-                                <View key={s.id} style={styles.requestCard}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ fontWeight: '600' }}>{s.solicitanteNombre || 'Usuario'}</Text>
-                                        <Text style={{ color: '#666' }}>{s.solicitanteCorreo || ''}</Text>
+                    ) : (
+                        pendingRequests.length > 0 && (
+                            <View style={{ marginBottom: 16 }}>
+                                <Text style={styles.sectionTitle}>Solicitudes recibidas</Text>
+                                {pendingRequests.map((s: any) => (
+                                    <View key={s.id} style={styles.requestCard}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontWeight: '600' }}>
+                                                {s.solicitanteNombre || 'Usuario'}
+                                            </Text>
+                                            <Text style={{ color: '#666' }}>
+                                                {s.solicitanteCorreo || ''}
+                                            </Text>
+                                        </View>
+                                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                                            <TouchableOpacity
+                                                style={styles.acceptButton}
+                                                onPress={() => acceptPending(s.id)}
+                                            >
+                                                <Text style={{ color: '#FFF' }}>Aceptar</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.rejectButton}
+                                                onPress={() => rejectPending(s.id)}
+                                            >
+                                                <Text style={{ color: '#333' }}>Rechazar</Text>
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
-                                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                                        <TouchableOpacity style={styles.acceptButton} onPress={() => acceptPending(s.id)}>
-                                            <Text style={{ color: '#FFF' }}>Aceptar</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={styles.rejectButton} onPress={() => rejectPending(s.id)}>
-                                            <Text style={{ color: '#333' }}>Rechazar</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
+                                ))}
+                            </View>
+                        )
                     )}
+
                     {/* Botón "Mi código QR" */}
                     <TouchableOpacity
                         style={styles.primaryButton}
@@ -143,7 +172,7 @@ export default function Amigos({ navigation }: any) {
                     </View>
 
                     {/* Lista de amigos */}
-                    {friends.map(friend => (
+                    {friends.map((friend: any) => (
                         <View key={friend.id} style={styles.friendCard}>
                             <View style={styles.friendRow}>
                                 <View style={styles.friendLeft}>
@@ -158,15 +187,21 @@ export default function Amigos({ navigation }: any) {
 
                                     <View>
                                         <Text style={styles.friendName}>{friend.name}</Text>
-                                            <Text style={styles.friendSubtitle}>
-                                                {friend.groupsInCommon} grupo
-                                                {friend.groupsInCommon !== 1 && 's'} en común
+                                        <Text style={styles.friendSubtitle}>
+                                            {friend.groupsInCommon} grupo
+                                            {friend.groupsInCommon !== 1 && 's'} en común
+                                        </Text>
+                                        {friend.groupsNames && friend.groupsNames.length > 0 && (
+                                            <Text
+                                                style={{
+                                                    color: '#8A9A92',
+                                                    marginTop: 4,
+                                                    fontSize: 12,
+                                                }}
+                                            >
+                                                {friend.groupsNames.join(', ')}
                                             </Text>
-                                            {friend.groupsNames && friend.groupsNames.length > 0 && (
-                                                <Text style={{ color: '#8A9A92', marginTop: 4, fontSize: 12 }}>
-                                                    {friend.groupsNames.join(', ')}
-                                                </Text>
-                                            )}
+                                        )}
                                     </View>
                                 </View>
 
@@ -198,7 +233,9 @@ export default function Amigos({ navigation }: any) {
                             <View style={styles.addFriendCard}>
                                 <View style={styles.addFriendHeader}>
                                     <Text style={styles.addFriendTitle}>Agregar amigo</Text>
-                                    <TouchableOpacity onPress={() => setAddFriendVisible(false)}>
+                                    <TouchableOpacity
+                                        onPress={() => setAddFriendVisible(false)}
+                                    >
                                         <Ionicons name="close" size={20} color="#666" />
                                     </TouchableOpacity>
                                 </View>
@@ -262,17 +299,27 @@ export default function Amigos({ navigation }: any) {
                                 </View>
 
                                 <View style={styles.qrPlaceholder}>
-                                    <MaterialCommunityIcons
-                                        name="qrcode"
-                                        size={64}
-                                        color="#A0A7A3"
-                                    />
+                                    {qrValue ? (
+                                        <QRCode value={qrValue} size={140} />
+                                    ) : (
+                                        <MaterialCommunityIcons
+                                            name="qrcode"
+                                            size={64}
+                                            color="#A0A7A3"
+                                        />
+                                    )}
                                 </View>
 
-                                <Text style={styles.qrUserName}>Tu Usuario</Text>
-                                <Text style={styles.qrUserId}>ID: #TU123456</Text>
+                                <Text style={styles.qrUserName}>
+                                    {user?.displayName || user?.email || 'Tu Usuario'}
+                                </Text>
+                                <Text style={styles.qrUserId}>
+                                    {user ? `ID: ${user.uid}` : 'ID no disponible'}
+                                </Text>
+
                                 <Text style={styles.qrHelpText}>
-                                    Comparte este código para que otros puedan agregarte como amigo
+                                    Comparte este código para que otros puedan agregarte como
+                                    amigo
                                 </Text>
                             </View>
                         </TouchableWithoutFeedback>

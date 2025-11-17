@@ -41,7 +41,7 @@
   },
   "optionalDependencies": {
     "expo-clipboard": "^4.8.0",
-    "react-native-qrcode-svg": "^6.3.16"
+    "react-native-qrcode-svg": "^6.3.20"
   },
   "devDependencies": {
     "@types/axios": "^0.14.4",

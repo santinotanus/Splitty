@@ -225,14 +225,31 @@ export async function subirComprobante({
     throw err;
   }
 
-  // Build data URI for Cloudinary upload
-  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
-  const dataUri = `data:${mime};base64,${data}`;
+  // Build / normalize data URI for Cloudinary upload
+  // If the client already included the data URI prefix, accept it as-is.
+  let dataUri = data;
+  if (!dataUri.startsWith('data:')) {
+    const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+    dataUri = `data:${mime};base64,${data}`;
+  }
 
   try {
+    // Validate Cloudinary credentials before attempting upload
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error('Cloudinary not configured. Missing CLOUDINARY_CLOUD_NAME/API_KEY/SECRET');
+      const err = new Error('CLOUDINARY_NOT_CONFIGURED');
+      (err as any).status = 500;
+      throw err;
+    }
+
     const uploadOptions: any = {
       folder: process.env.CLOUDINARY_FOLDER || 'comprobantes',
-      resource_type: 'image'
+      resource_type: 'image',
+      // Avoid storing huge originals: apply a limit + quality/compression
+      transformation: [
+        { width: 1600, crop: 'limit', fetch_format: 'auto' },
+        { quality: '60' }
+      ]
     };
 
     // public_id: include group and a timestamp to avoid collisions

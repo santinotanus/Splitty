@@ -15,7 +15,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({ origin: true }));
-app.use(express.json());
+// 🔥 Increase payload limits to support base64 image uploads from the client
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
   if (err && err instanceof SyntaxError && 'body' in err) {

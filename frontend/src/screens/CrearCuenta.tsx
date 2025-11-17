@@ -13,7 +13,11 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../contexts/AuthContext';
-import { checkClaveAvailable } from '../api/client';
+import { Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { checkClaveAvailable, uploadImageToCloudinaryUnsigned } from '../api/client';
+import Constants from 'expo-constants';
 
 export default function CrearCuenta({ navigation }: any) {
   const { register } = useAuth();
@@ -25,6 +29,8 @@ export default function CrearCuenta({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
   const [clavePago, setClavePago] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [fotoBase64, setFotoBase64] = useState<string | null>(null);
   const [aceptaTyC, setAceptaTyC] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -124,13 +130,23 @@ export default function CrearCuenta({ navigation }: any) {
         console.warn('No se pudo verificar disponibilidad del alias, se intentará crear igual', err);
       }
 
+      // For profile photo, use server-side upload (same approach as receipts):
+      // always read base64 and send to backend. This centralizes upload logic
+      // and avoids client Blob/unsigned issues.
+      let fotoToSend: string | null = null;
+      if (imageUri && fotoBase64) {
+        fotoToSend = fotoBase64;
+        console.log('Enviar foto en base64 al backend (CrearCuenta), tamaño:', fotoToSend.length);
+      }
+
       // Usar el register del AuthContext que maneja Firebase + Backend
       await register(
         email.trim(),
         password,
         nombre.trim(),
         parseFechaInput(fecha),
-        clavePago.trim()
+        clavePago.trim(),
+        fotoToSend
       );
 
       console.log('✅ Cuenta creada exitosamente');
@@ -200,6 +216,51 @@ export default function CrearCuenta({ navigation }: any) {
         <Text style={styles.subtitle}>
           Únete y comienza a gestionar gastos compartidos
         </Text>
+
+        {/* Foto de perfil (opcional) */}
+        <Text style={styles.label}>Foto de perfil (opcional)</Text>
+        <TouchableOpacity
+          onPress={async () => {
+            try {
+              const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+              if (!permission.granted) {
+                Alert.alert('Permiso requerido', 'Se necesita permiso para acceder a la galería');
+                return;
+              }
+
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 0.8
+              });
+
+              if ('canceled' in result && result.canceled) return;
+
+              const uri = (result as any).assets?.[0]?.uri as string | undefined;
+              if (!uri) return;
+              setImageUri(uri);
+
+              // Leer base64 para ser enviado al backend
+              try {
+                const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+                setFotoBase64(b64);
+              } catch (fsErr) {
+                console.warn('No se pudo leer la imagen en base64', fsErr);
+                setFotoBase64(null);
+              }
+            } catch (err) {
+              console.error('Error seleccionando imagen', err);
+            }
+          }}
+          style={[styles.input, { alignItems: 'center', justifyContent: 'center', height: 120 }]}
+          disabled={loading}
+        >
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={{ width: 100, height: 100, borderRadius: 50 }} />
+          ) : (
+            <Text style={{ color: '#666' }}>Tocar para seleccionar una foto</Text>
+          )}
+        </TouchableOpacity>
 
         {/* Nombre completo */}
         <Text style={styles.label}>Nombre completo</Text>

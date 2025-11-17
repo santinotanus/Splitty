@@ -219,17 +219,23 @@ export async function insertReceipt({
   uploadedBy: string;
 }) {
   // Insertar en tabla saldos_comprobantes
-  const [idRow] = await db('dbo.saldos_comprobantes')
-    .insert({
-      grupo_id: grupoId,
-      deudor_id: deudorId,
-      acreedor_id: acreedorId,
-      url,
-      uploaded_by: uploadedBy,
-      created_at: db.fn.now()
-    })
-    .returning('id');
+  // NOTE: `.returning('id')` is not reliably supported on MSSQL via Knex.
+  // We'll insert and then query the most recently created matching row.
+  await db('dbo.saldos_comprobantes').insert({
+    grupo_id: grupoId,
+    deudor_id: deudorId,
+    acreedor_id: acreedorId,
+    url,
+    uploaded_by: uploadedBy,
+    created_at: db.fn.now()
+  });
 
-  return { id: idRow?.id || null };
+  // Try to fetch the inserted row by matching keys and ordering by creation time
+  const inserted = await db('dbo.saldos_comprobantes')
+    .where({ grupo_id: grupoId, deudor_id: deudorId, acreedor_id: acreedorId, url })
+    .orderBy('created_at', 'desc')
+    .first();
+
+  return { id: inserted?.id || null };
 }
 

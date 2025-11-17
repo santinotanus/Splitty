@@ -5,7 +5,9 @@ import { updateProfile, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../config/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { storage, db } from "../config/firebase";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
+import Constants from 'expo-constants';
+import { uploadImageToCloudinaryUnsigned, getCurrentUser, updateUser } from "../api/client";
 
 interface ProfileContextType {
   profileImage: string;
@@ -28,53 +30,35 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
 
-      // Read image as base64 (React Native compatible)
-      let base64: string;
-      
-      // Si la URI ya viene con base64 (desde ImagePicker con base64: true), usarla directamente
-      // Si no, leerla desde el archivo
-      if (uri.startsWith('data:')) {
-        // Ya es un data URI, extraer el base64
-        base64 = uri.split(',')[1];
-      } else {
-        // Leer desde archivo
-        base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: "base64",
-        });
+      // Server-side base64 upload (same as DebtDetail) — simpler and reliable
+      try {
+        let base64: string;
+        if (uri.startsWith('data:')) {
+          base64 = uri.split(',')[1];
+        } else {
+          base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        }
+
+        console.log('📤 uploadProfileImage -> sending base64 to backend, length:', (base64 || '').length);
+        await updateUser({ foto_data: base64 });
+
+        const backendUser = await getCurrentUser();
+        if (backendUser?.foto_url) {
+          await AsyncStorage.setItem(`profileImage_${userId}`, backendUser.foto_url).catch(() => {});
+          if (auth.currentUser) {
+            try { await updateProfile(auth.currentUser, { photoURL: backendUser.foto_url }); } catch(e){ }
+          }
+          setProfileImageState(backendUser.foto_url);
+          console.log('✅ Profile image uploaded via backend and persisted:', backendUser.foto_url);
+          return;
+        } else {
+          console.warn('Backend did not return foto_url after upload');
+        }
+      } catch (serverErr) {
+        console.error('Server-side upload failed:', serverErr);
+        throw serverErr;
       }
 
-      // Create reference in Storage
-      const storageRef = ref(storage, `profile-images/${userId}.jpg`);
-
-      // Upload image using uploadString with base64 format (avoids ArrayBuffer/Blob issues)
-      // Usar 'base64' en lugar de 'data_url' para evitar problemas con Blob
-      await uploadString(storageRef, base64, "base64");
-
-      // Get download URL
-      const downloadURL = await getDownloadURL(storageRef);
-
-      // Save URL in Firestore
-      await setDoc(
-        doc(db, "users", userId),
-        {
-          profileImage: downloadURL,
-          updatedAt: new Date().toISOString(),
-        },
-        { merge: true },
-      );
-
-      // Save also in AsyncStorage as local cache
-      await AsyncStorage.setItem(`profileImage_${userId}`, downloadURL);
-
-      // Also update Firebase Auth profile for consistency
-      if (auth.currentUser) {
-        await updateProfile(auth.currentUser, { photoURL: downloadURL });
-      }
-
-      // Update state (this will trigger re-render in all components using useProfile)
-      setProfileImageState(downloadURL);
-
-      console.log("✅ Profile image uploaded successfully:", downloadURL);
     } catch (error) {
       console.error("❌ Error uploading profile image:", error);
       throw error;
@@ -99,49 +83,41 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         console.log("Cache read error (non-critical):", cacheError);
       }
 
-      // STEP 2: Load from Firestore to ensure it's up to date
-      // This is done in background, doesn't block UI
+      // STEP 2: Try loading from backend (preferred source for foto_url)
       try {
-        const docRef = doc(db, "users", userId);
+        const backendUser = await getCurrentUser();
+        if (backendUser?.foto_url) {
+          console.log('☁️ Loading profile image from backend foto_url');
+          setProfileImageState(backendUser.foto_url);
+          await AsyncStorage.setItem(`profileImage_${userId}`, backendUser.foto_url).catch(() => {});
+          return;
+        }
+      } catch (backendErr) {
+        console.warn('No se pudo cargar foto_url desde backend (non-fatal):', backendErr);
+      }
+
+      // STEP 3: Load from Firestore as last-resort fallback
+      try {
+        const docRef = doc(db, 'users', userId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.profileImage) {
-            console.log("☁️ Loading profile image from Firestore");
+            console.log('☁️ Loading profile image from Firestore (fallback)');
             setProfileImageState(data.profileImage);
-            // Update cache for next time
-            await AsyncStorage.setItem(`profileImage_${userId}`, data.profileImage).catch(() => {
-              // Ignore cache write errors
-            });
-          }
-        } else {
-          // If no Firestore doc, try Firebase Auth photoURL as fallback
-          if (auth.currentUser?.photoURL) {
-            console.log("🔐 Loading profile image from Firebase Auth");
-            setProfileImageState(auth.currentUser.photoURL);
-            await AsyncStorage.setItem(`profileImage_${userId}`, auth.currentUser.photoURL).catch(() => {
-              // Ignore cache write errors
-            });
+            await AsyncStorage.setItem(`profileImage_${userId}`, data.profileImage).catch(() => {});
+            return;
           }
         }
       } catch (firestoreError: any) {
-        // The app uses long-polling fallback automatically, so these warnings don't affect functionality
-        // We already loaded from cache in STEP 1, so the user sees their image immediately
-        const errorCode = firestoreError?.code;
-        const errorMessage = firestoreError?.message || "";
+        console.log('Firestore load warning (non-critical):', firestoreError?.message || firestoreError);
+      }
 
-        // Only log unexpected errors (not connection/WebChannel issues)
-        if (
-          errorCode !== "unavailable" &&
-          errorCode !== "cancelled" &&
-          !errorMessage.includes("WebChannel") &&
-          !errorMessage.includes("stream") &&
-          !errorMessage.includes("transport")
-        ) {
-          console.log("⚠️ Firestore load warning (non-critical):", errorMessage);
-        }
-
-        // Keep cached image if Firestore fails - this is fine, we'll try again next time
+      // Fallback to Firebase Auth photoURL if available
+      if (auth.currentUser?.photoURL) {
+        console.log('🔐 Loading profile image from Firebase Auth (final fallback)');
+        setProfileImageState(auth.currentUser.photoURL);
+        await AsyncStorage.setItem(`profileImage_${userId}`, auth.currentUser.photoURL).catch(() => {});
       }
 
       console.log("✅ Profile image loaded successfully");

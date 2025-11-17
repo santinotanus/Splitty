@@ -2,14 +2,14 @@ import { db } from '../../config/db';
 
 export async function findUserByFirebaseUid(firebaseUid: string) {
   return db('dbo.usuarios')
-    .select('id', 'firebase_uid', 'nombre', 'correo', 'fechaNacimiento', 'clave_pago')
+    .select('id', 'firebase_uid', 'nombre', 'correo', 'fechaNacimiento', 'clave_pago', 'foto_url')
     .where({ firebase_uid: firebaseUid })
     .first();
 }
 
 export async function findUserByEmail(correo: string) {
   return db('dbo.usuarios')
-    .select('id', 'firebase_uid', 'nombre', 'correo', 'clave_pago')
+    .select('id', 'firebase_uid', 'nombre', 'correo', 'clave_pago', 'foto_url')
     .where({ correo })
     .first();
 }
@@ -20,15 +20,16 @@ export async function insertUser(params: {
   correo: string;
   fechaNacimiento: Date;
   clave_pago?: string | null;
+  foto_url?: string | null;
 }) {
-  const { firebase_uid, nombre, correo, fechaNacimiento, clave_pago } = params;
+  const { firebase_uid, nombre, correo, fechaNacimiento, clave_pago, foto_url } = params;
 
-  // 🔥 SQL Server with UNIQUEIDENTIFIER - include clave_pago (nullable)
+  // 🔥 SQL Server with UNIQUEIDENTIFIER - include clave_pago (nullable) and optional foto_url
   const result = await db.raw(`
-    INSERT INTO dbo.usuarios (id, firebase_uid, nombre, correo, fechaNacimiento, clave_pago, fecha_creacion)
+    INSERT INTO dbo.usuarios (id, firebase_uid, nombre, correo, fechaNacimiento, clave_pago, foto_url, fecha_creacion)
     OUTPUT inserted.id
-    VALUES (NEWID(), ?, ?, ?, ?, ?, GETDATE())
-  `, [firebase_uid, nombre, correo, fechaNacimiento, clave_pago ?? null]);
+    VALUES (NEWID(), ?, ?, ?, ?, ?, ?, GETDATE())
+  `, [firebase_uid, nombre, correo, fechaNacimiento, clave_pago ?? null, foto_url ?? null]);
 
   // Different drivers may return different shapes
   let insertedId: any = undefined;

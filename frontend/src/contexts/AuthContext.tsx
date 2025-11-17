@@ -21,7 +21,7 @@ type AuthContextType = {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  register: (email: string, password: string, nombre: string, fechaNacimiento: string, clavePago?: string) => Promise<User>;
+  register: (email: string, password: string, nombre: string, fechaNacimiento: string, clavePago?: string, foto?: string | null) => Promise<User>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -95,7 +95,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     nombre: string,
     fechaNacimiento: string,
-    clavePago?: string
+    clavePago?: string,
+    foto?: string | null
   ): Promise<User> => {
     let userCredential;
 
@@ -118,11 +119,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 3. Sincronizar con backend
       console.log('3️⃣ Sincronizando con backend...');
-      await syncUserWithBackend({
+      // foto may be either a base64 data string or an already-hosted URL
+      const payload: any = {
         nombre,
         fechaNacimiento,
         clave_pago: clavePago ?? null
-      });
+      };
+
+      if (foto) {
+        if (typeof foto === 'string' && foto.startsWith('http')) {
+          payload.foto_url = foto;
+        } else {
+          payload.foto_data = foto;
+        }
+      }
+
+      await syncUserWithBackend(payload);
       console.log('✅ Sincronización exitosa');
 
       // 4. Enviar email de verificación

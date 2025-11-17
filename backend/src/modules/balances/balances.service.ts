@@ -258,6 +258,7 @@ export async function subirComprobante({
 
     const result = await cloudinary.uploader.upload(dataUri, uploadOptions);
     const secureUrl = result.secure_url || result.url;
+    console.log('☁️ Cloudinary upload result:', { public_id: result.public_id, secure_url: secureUrl });
 
     // Persist metadata in DB
     const saved = await repo.insertReceipt({
@@ -267,6 +268,8 @@ export async function subirComprobante({
       url: secureUrl,
       uploadedBy: userId
     });
+
+    console.log('📝 insertReceipt returned id:', saved?.id);
 
     return { ok: true, url: secureUrl, id: saved?.id };
   } catch (err: any) {

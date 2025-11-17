@@ -24,7 +24,7 @@
     "expo-barcode-scanner": "^13.0.1",
     "expo-camera": "~17.0.9",
     "expo-constants": "^18.0.10",
-    "expo-file-system": "~19.0.17",
+    "expo-file-system": "~19.0.18",
     "expo-image-picker": "~16.0.2",
     "expo-linear-gradient": "latest",
     "expo-status-bar": "~3.0.8",

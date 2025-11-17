@@ -41,6 +41,7 @@ CREATE TABLE dbo.usuarios (
   nombre NVARCHAR(120) NOT NULL,
   correo NVARCHAR(255) NOT NULL UNIQUE,
   fechaNacimiento DATE NOT NULL,
+  foto_url NVARCHAR(500) NULL,
   
   -- Auditoría
   fecha_creacion DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
@@ -302,6 +303,29 @@ CREATE TABLE dbo.saldos_grupo (
 GO
 
 CREATE INDEX IX_saldos_grupo_grupo ON dbo.saldos_grupo (grupo_id);
+GO
+
+/* =========================================
+   TABLA: saldos_comprobantes
+   Comprobantes (imágenes) asociados a deudas entre usuarios
+   - Se guarda la URL pública (Cloudinary) y metadatos de subida
+========================================= */
+CREATE TABLE dbo.saldos_comprobantes (
+  id UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID() PRIMARY KEY,
+  grupo_id UNIQUEIDENTIFIER NOT NULL,
+  deudor_id UNIQUEIDENTIFIER NOT NULL,
+  acreedor_id UNIQUEIDENTIFIER NOT NULL,
+  url NVARCHAR(500) NOT NULL,
+  uploaded_by UNIQUEIDENTIFIER NOT NULL,
+  created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT FK_saldo_comp_grupo FOREIGN KEY (grupo_id) REFERENCES dbo.grupos(id) ON DELETE CASCADE,
+  CONSTRAINT FK_saldo_comp_deudor FOREIGN KEY (grupo_id, deudor_id) REFERENCES dbo.miembros_grupo (grupo_id, usuario_id),
+  CONSTRAINT FK_saldo_comp_acreedor FOREIGN KEY (grupo_id, acreedor_id) REFERENCES dbo.miembros_grupo (grupo_id, usuario_id)
+);
+GO
+
+CREATE INDEX IX_saldos_comprobantes_grupo ON dbo.saldos_comprobantes (grupo_id, created_at DESC);
+CREATE INDEX IX_saldos_comprobantes_par ON dbo.saldos_comprobantes (grupo_id, deudor_id, acreedor_id, created_at DESC);
 GO
 
 /* =========================================

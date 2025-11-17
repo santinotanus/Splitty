@@ -32,8 +32,8 @@ export async function updateMe(req: Request, res: Response) {
   }
 
   try {
-    const { nombre, clave_pago } = req.body;
-    await svc.updateMe({ firebaseUid, nombre, clave_pago });
+    const { nombre, clave_pago, foto_url, foto_data } = req.body;
+    await svc.updateMe({ firebaseUid, nombre, clave_pago, foto_url, foto_data });
     res.json({ ok: true });
   } catch (err) {
     console.error('Error en updateMe:', err);

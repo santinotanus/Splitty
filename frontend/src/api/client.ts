@@ -1,5 +1,6 @@
 import axios from "axios";
 import Constants from "expo-constants";
+import { Platform } from 'react-native';
 
 // Obtener la URL del backend desde la configuración de Expo o usar la IP correcta
 const getBackendUrl = () => {
@@ -7,12 +8,33 @@ const getBackendUrl = () => {
     const url = Constants.expoConfig?.extra?.BACKEND_URL;
 
     if (!url) {
-        console.warn(
-            "⚠️ BACKEND_URL no está configurada. Revisá .env.local y app.config.js"
-        );
+    console.warn(
+      "⚠️ BACKEND_URL no está configurada en app.config.js. Intentando fallback según plataforma..."
+    );
+
+    if (__DEV__) {
+      // En desarrollo intentamos derivar la IP automáticamente.
+      // 1) Si Expo expone `manifest.debuggerHost`, lo usamos (útil en dispositivos físicos).
+      const manifest: any = (Constants as any).manifest || (Constants as any).expoConfig;
+      const debuggerHost = manifest && (manifest.debuggerHost || manifest.hostUri);
+      if (debuggerHost && typeof debuggerHost === 'string') {
+        // debuggerHost tiene formato '192.168.1.34:19000'
+        const host = debuggerHost.split(':')[0];
+        const inferred = `http://${host}:3000`;
+        console.warn('⚠️ Usando BACKEND_URL inferida desde debuggerHost:', inferred);
+        return inferred;
+      }
+
+      // 2) Fallbacks conocidos por plataforma
+      const fallback = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+      console.warn('⚠️ Usando BACKEND_URL fallback en desarrollo:', fallback);
+      return fallback;
     }
 
-    return url;
+    return undefined;
+  }
+
+  return url;
 };
 
 const BACKEND_URL = getBackendUrl();
@@ -118,6 +140,8 @@ export const syncUserWithBackend = async (userData: {
   nombre: string;
   fechaNacimiento: string; // YYYY-MM-DD
   clave_pago?: string | null;
+  foto_data?: string | null; // optional base64
+  foto_url?: string | null; // optional client-provided URL
 }) => {
   console.log('🔄 Iniciando sincronización con backend...');
   console.log('📦 Datos a enviar:', userData);
@@ -139,7 +163,7 @@ export const getCurrentUser = async () => {
 };
 
 // Actualizar datos del usuario autenticado
-export const updateUser = async (updateData: { nombre?: string; clave_pago?: string | null }) => {
+export const updateUser = async (updateData: { nombre?: string; clave_pago?: string | null; foto_url?: string | null; foto_data?: string | null }) => {
   const response = await api.put("/users/me", updateData);
   return response.data;
 };
@@ -161,4 +185,43 @@ export const testConnection = async () => {
     console.error('❌ No se pudo conectar al backend');
     return false;
   }
+};
+
+// ==================== CLOUDINARY UNSIGNED UPLOAD (CLIENT) ====================
+export const uploadImageToCloudinaryUnsigned = async (fileUri: string) => {
+  const cloudName = Constants.expoConfig?.extra?.CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = Constants.expoConfig?.extra?.CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error('CLOUDINARY_UNSENT_CONFIG');
+  }
+
+  const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
+
+  const formData: any = new FormData();
+  // name must include filename and type
+  const filename = fileUri.split('/').pop() || `photo_${Date.now()}.jpg`;
+  const match = filename.match(/\.([0-9a-z]+)(?:[?#]|$)/i);
+  const ext = match ? match[1].toLowerCase() : 'jpg';
+  const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+  formData.append('file', {
+    uri: fileUri,
+    name: filename,
+    type: mime,
+  } as any);
+  formData.append('upload_preset', uploadPreset);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => 'no body');
+    throw new Error(`CLOUDINARY_UPLOAD_FAILED ${response.status} ${text}`);
+  }
+
+  const data = await response.json();
+  return data; // contains secure_url, public_id, etc.
 };

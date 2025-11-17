@@ -136,19 +136,17 @@ export default function PantallaPerfil({ navigation }: any) {
 
       if (!result.canceled && result.assets[0] && user?.uid) {
         const asset = result.assets[0];
-        
-        // KEY CHANGE: Update image immediately with local URI (what makes it work)
+
+        // Update immediately the UI with the local URI
         setProfileImage(asset.uri);
-        
-        // Si ImagePicker devolvió base64, usarlo directamente; si no, usar la URI
-        // ProfileContext manejará ambos casos
-        const imageSource = asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-        
-        // Upload to Firebase in background (doesn't block UI)
-        // ProfileContext handles the upload and updates all components automatically
+
+        // Always pass the local file URI to uploadProfileImage. The upload helper
+        // will attempt unsigned Cloudinary upload with the file URI and fall back
+        // to the Firebase Storage base64 flow if needed.
+        const imageSource = asset.uri;
+
         uploadProfileImage(imageSource, user.uid).catch((error) => {
           console.error('Error uploading profile image:', error);
-          // Image stays as local URI until upload succeeds
         });
       }
     } catch (error) {

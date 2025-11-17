@@ -8,18 +8,18 @@ export async function syncUser(req: Request, res: Response) {
     const firebaseUid = authReq.user?.uid;
     const email = authReq.user?.email;
 
-    console.log('📥 syncUser request:', {
-      firebaseUid,
-      email,
-      body: req.body
-    });
+    // Avoid logging large base64 bodies raw; log presence and sizes instead
+    const bodySummary: any = { nombre: req.body.nombre, fechaNacimiento: req.body.fechaNacimiento, clave_pago: req.body.clave_pago };
+    if (req.body.foto_url) bodySummary.foto_url = true;
+    if (req.body.foto_data) bodySummary.foto_data_length = String((req.body.foto_data || '').length).slice(0, 8) + '...';
+    console.log('📥 syncUser request:', { firebaseUid, email, bodySummary });
 
     if (!firebaseUid || !email) {
       console.error('❌ No firebaseUid o email en request');
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
 
-    const { nombre, fechaNacimiento, clave_pago } = req.body;
+    const { nombre, fechaNacimiento, clave_pago, foto_data, foto_url } = req.body;
 
     if (!nombre || !fechaNacimiento) {
       return res.status(400).json({
@@ -33,7 +33,9 @@ export async function syncUser(req: Request, res: Response) {
       email,
       nombre,
       fechaNacimiento,
-      clave_pago
+      clave_pago,
+      foto_data,
+      foto_url
     });
 
     console.log('✅ syncUser exitoso:', result.id);

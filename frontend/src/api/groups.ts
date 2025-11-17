@@ -44,6 +44,30 @@ export async function getGroupBalances(grupoId: string) {
   const res = await api.get(`/grupos/${encodeURIComponent(grupoId)}/balance`);
   return res.data;
 }
+export async function updateGroup(grupoId: string, payload: { nombre?: string; descripcion?: string }) {
+  const res = await api.put(`/grupos/${grupoId}`, payload);
+  return res.data;
+}
+
+export async function removeGroupMember(grupoId: string, usuarioId: string) {
+  const res = await api.delete(`/grupos/${grupoId}/miembros/${usuarioId}`);
+  return res.data;
+}
+
+export async function updateMemberRole(grupoId: string, usuarioId: string, rol: string) {
+  const res = await api.put(`/grupos/${grupoId}/miembros/${usuarioId}/rol`, { rol });
+  return res.data;
+}
+
+export async function deleteGroup(grupoId: string) {
+  const res = await api.delete(`/grupos/${grupoId}`);
+  return res.data;
+}
+
+export async function getGroupStats(grupoId: string) {
+  const res = await api.get(`/grupos/${grupoId}/estadisticas`);
+  return res.data;
+}
 
 export default {
   createGroup,
@@ -52,4 +76,9 @@ export default {
   createInviteLink,
   joinByInvite,
   addMembers,
+  updateGroup,
+  removeGroupMember,
+  updateMemberRole,
+  deleteGroup,
+  getGroupStats,
 };

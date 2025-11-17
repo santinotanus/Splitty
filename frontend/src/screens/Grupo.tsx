@@ -1,12 +1,25 @@
-// frontend/src/screens/Grupo.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, Modal, Alert, TouchableOpacity as RNTouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Alert,
+  TouchableOpacity as RNTouchableOpacity,
+  TouchableWithoutFeedback
+} from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useGrupo } from '../viewmodels/useGrupo';
+import { useAuth } from '../contexts/AuthContext';
 import * as balancesApi from '../api/balances';
 import * as gastosApi from '../api/gastos';
 
 export default function Grupo({ route, navigation }: any) {
-  const { grupoId, nombre, emoji } = route.params || {};
+  const { grupoId, nombre, emoji, descripcion } = route.params || {};
+  const { user } = useAuth();
   const [optionsVisible, setOptionsVisible] = useState(false);
   const { members, loading, refreshMembers, groupTotal } = useGrupo(grupoId) as any;
   const [activeTab, setActiveTab] = useState<'gastos' | 'deudas'>('gastos');
@@ -15,6 +28,10 @@ export default function Grupo({ route, navigation }: any) {
   const [debtsLoading, setDebtsLoading] = useState(false);
   const [groupExpenses, setGroupExpenses] = useState<any[]>([]);
   const [expensesLoading, setExpensesLoading] = useState(false);
+
+  // Determinar el rol del usuario actual
+  const currentMember = members.find((m: any) => m.firebase_uid === user?.uid);
+  const userRole = currentMember?.rol || 'miembro';
 
   useEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -85,6 +102,16 @@ export default function Grupo({ route, navigation }: any) {
     setOptionsVisible(false);
   };
 
+  const handleSettings = () => {
+    navigation.navigate('ConfiguracionGrupo', {
+      grupoId,
+      nombre,
+      descripcion: descripcion || '',
+      emoji,
+      rol: userRole
+    });
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -93,11 +120,16 @@ export default function Grupo({ route, navigation }: any) {
           <Text style={styles.back}>{'‹'}</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>{nombre || 'Grupo'}</Text>
-          <Text style={styles.headerSubtitle}>{membersCount} miembro{membersCount !== 1 ? 's' : ''}</Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.emojiHeader}>{emoji || '✈️'}</Text>
+            <Text style={styles.headerTitle}>{nombre || 'Grupo'}</Text>
+          </View>
+          <Text style={styles.headerSubtitle}>
+            {membersCount} miembro{membersCount !== 1 ? 's' : ''}
+          </Text>
         </View>
-        <TouchableOpacity onPress={() => Alert.alert('Ajustes', 'Aquí van los ajustes del grupo')}>
-          <Text style={styles.settings}>⚙️</Text>
+        <TouchableOpacity onPress={handleSettings}>
+          <Feather name="settings" size={22} color="#033E30" />
         </TouchableOpacity>
       </View>
 
@@ -106,81 +138,203 @@ export default function Grupo({ route, navigation }: any) {
         <Text style={styles.balanceLabel}>Balance del grupo</Text>
         <Text style={styles.balanceAmount}>${(groupTotal ?? 0).toFixed(2)}</Text>
         <Text style={styles.totalSpent}>Total gastado</Text>
-        <View style={{ flexDirection: 'row', marginTop: 8, gap: 12 }}>
-          {members.map((m: any) => (
-            <View key={m.id} style={{ alignItems: 'center' }}>
-              <View style={[styles.avatarCircle, { backgroundColor: '#033E30' }]}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{(m.nombre || m.correo || 'U').charAt(0).toUpperCase()}</Text>
-              </View>
-              <Text style={{ marginTop: 6, fontWeight: '700', fontSize: 12 }}>{m.nombre || m.correo}</Text>
-              <Text style={{ color: '#333', fontSize: 11 }}>${(m.totalPagado || 0).toFixed(2)}</Text>
-              <Text style={{ color: (m.balance || 0) >= 0 ? '#0A8F4A' : '#B00020', fontSize: 11 }}>{(m.balance || 0) >= 0 ? '+' : '-'}${Math.abs((m.balance || 0)).toFixed(2)}</Text>
-            </View>
-          ))}
-        </View>
+
+        {/* Miembros con sus balances */}
+        {members.length > 0 && (
+          <View style={{ flexDirection: 'row', marginTop: 16, gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {members.map((m: any) => {
+              const balance = m.balance || 0;
+              const isPositive = balance >= 0;
+
+              return (
+                <View key={m.id} style={{ alignItems: 'center', width: 80 }}>
+                  <View style={[styles.avatarCircle, { backgroundColor: '#033E30' }]}>
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                      {(m.nombre || m.correo || 'U').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      marginTop: 6,
+                      fontWeight: '700',
+                      fontSize: 12,
+                      textAlign: 'center',
+                    }}
+                    numberOfLines={1}
+                  >
+                    {m.nombre || m.correo}
+                  </Text>
+                  <Text style={{ color: '#666', fontSize: 11, marginTop: 2 }}>
+                    Pagó ${(m.totalPagado || 0).toFixed(2)}
+                  </Text>
+                  <Text
+                    style={{
+                      color: isPositive ? '#0A8F4A' : '#B00020',
+                      fontSize: 12,
+                      fontWeight: '600',
+                      marginTop: 2,
+                    }}
+                  >
+                    {isPositive ? '+' : '-'}${Math.abs(balance).toFixed(2)}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsRow}>
-        <TouchableOpacity style={[styles.tab, activeTab === 'gastos' ? { backgroundColor: '#033E30' } : { backgroundColor: '#f0f0f0' }]} onPress={() => setActiveTab('gastos')}>
-          <Text style={{ color: activeTab === 'gastos' ? '#fff' : '#666' }}>Gastos</Text>
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'gastos' ? { backgroundColor: '#033E30' } : { backgroundColor: '#f0f0f0' }
+          ]}
+          onPress={() => setActiveTab('gastos')}
+        >
+          <Text style={{ color: activeTab === 'gastos' ? '#fff' : '#666', fontWeight: '600' }}>
+            Gastos
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.tab, activeTab === 'deudas' ? { backgroundColor: '#033E30' } : { backgroundColor: '#f0f0f0' }]} onPress={() => setActiveTab('deudas')}>
-          <Text style={{ color: activeTab === 'deudas' ? '#fff' : '#666' }}>Deudas</Text>
+        <TouchableOpacity
+          style={[
+            styles.tab,
+            activeTab === 'deudas' ? { backgroundColor: '#033E30' } : { backgroundColor: '#f0f0f0' }
+          ]}
+          onPress={() => setActiveTab('deudas')}
+        >
+          <Text style={{ color: activeTab === 'deudas' ? '#fff' : '#666', fontWeight: '600' }}>
+            Deudas
+          </Text>
         </TouchableOpacity>
       </View>
 
       {/* Content for each tab */}
       {activeTab === 'gastos' ? (
-        <>
+        <View style={{ flex: 1 }}>
           <View style={styles.recentHeader}>
-            <Text style={{ fontWeight: '700' }}>Gastos recientes</Text>
-            <Text style={{ color: '#666' }}>{(groupExpenses || []).length} gastos</Text>
+            <Text style={{ fontWeight: '700', fontSize: 16 }}>Gastos recientes</Text>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{(groupExpenses || []).length} gastos</Text>
+            </View>
           </View>
+
           {expensesLoading ? (
-            <ActivityIndicator />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="large" color="#033E30" />
+            </View>
           ) : (groupExpenses.length === 0 ? (
-            <View style={{ padding: 16 }}>
-              <Text style={{ color: '#666' }}>No hay gastos en este grupo.</Text>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
+              <Feather name="inbox" size={48} color="#ccc" />
+              <Text style={{ color: '#666', marginTop: 16, textAlign: 'center', fontSize: 16 }}>
+                No hay gastos en este grupo
+              </Text>
+              <Text style={{ color: '#999', marginTop: 8, textAlign: 'center', fontSize: 14 }}>
+                Presiona el botón + para agregar el primer gasto
+              </Text>
             </View>
           ) : (
             <FlatList
               data={groupExpenses}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingHorizontal: 12 }}
+              contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 80 }}
               renderItem={({ item: g }) => (
-                <View style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
-                  <Text style={{ fontWeight: '700' }}>{g.descripcion || 'Gasto'}</Text>
-                  <Text style={{ color: '#666' }}>Pagador: {g.pagador_nombre || g.pagador_correo}</Text>
-                  <Text style={{ marginTop: 6, fontWeight: '700' }}>${Number(g.importe || 0).toFixed(2)}</Text>
-                  <Text style={{ color: '#999', fontSize: 12 }}>{g.participantes?.length ?? 0} participantes</Text>
+                <View style={styles.expenseCard}>
+                  <View style={styles.expenseHeader}>
+                    <View style={styles.expenseIcon}>
+                      <Feather name="shopping-bag" size={20} color="#033E30" />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={styles.expenseTitle}>{g.descripcion || 'Gasto'}</Text>
+                      <Text style={styles.expenseMeta}>
+                        Pagado por {g.pagador_nombre || g.pagador_correo}
+                      </Text>
+                      <Text style={styles.expenseDate}>
+                        {new Date(g.fecha_pago).toLocaleDateString('es-AR', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.expenseAmount}>
+                        ${Number(g.importe || 0).toFixed(2)}
+                      </Text>
+                      <View style={styles.participantsBadge}>
+                        <Feather name="users" size={12} color="#666" />
+                        <Text style={styles.participantsBadgeText}>
+                          {g.participantes?.length ?? 0}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                 </View>
               )}
             />
           ))}
-        </>
+        </View>
       ) : (
-        <View style={{ padding: 16 }}>
+        <View style={{ flex: 1 }}>
           {debtsLoading ? (
-            <ActivityIndicator />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="large" color="#033E30" />
+            </View>
           ) : (
-            <>
-              <Text style={{ fontWeight: '700', marginBottom: 8 }}>Deudas</Text>
-              {debts.length === 0 ? <Text style={{ color: '#666' }}>No tenés deudas en este grupo</Text> : debts.map((d: any, idx: number) => (
-                <View key={idx} style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
-                  <Text style={{ fontWeight: '700' }}>{d.haciaUsuarioNombre || d.haciaUsuarioCorreo}</Text>
-                  <Text style={{ color: '#B00020' }}>Debés ${Number(d.importe).toFixed(2)}</Text>
-                </View>
-              ))}
+            <View style={{ flex: 1, padding: 16 }}>
+              {/* Deudas */}
+              <View style={{ marginBottom: 24 }}>
+                <Text style={styles.debtSectionTitle}>Tus deudas</Text>
+                {debts.length === 0 ? (
+                  <View style={styles.emptyDebtCard}>
+                    <Feather name="check-circle" size={32} color="#0A8F4A" />
+                    <Text style={styles.emptyDebtText}>¡No tenés deudas!</Text>
+                  </View>
+                ) : (
+                  debts.map((d: any, idx: number) => (
+                    <View key={idx} style={styles.debtCard}>
+                      <View style={[styles.debtIcon, { backgroundColor: '#FFE6E6' }]}>
+                        <Feather name="arrow-up-right" size={20} color="#B00020" />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.debtName}>{d.haciaUsuarioNombre || d.haciaUsuarioCorreo}</Text>
+                        <Text style={styles.debtLabel}>Le debés</Text>
+                      </View>
+                      <Text style={[styles.debtAmount, { color: '#B00020' }]}>
+                        ${Number(d.importe).toFixed(2)}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
 
-              <Text style={{ fontWeight: '700', marginTop: 12 }}>Créditos</Text>
-              {credits.length === 0 ? <Text style={{ color: '#666' }}>Nadie te debe</Text> : credits.map((c: any, idx: number) => (
-                <View key={idx} style={{ padding: 10, backgroundColor: '#fff', borderRadius: 8, marginBottom: 8 }}>
-                  <Text style={{ fontWeight: '700' }}>{c.desdeUsuarioNombre || c.desdeUsuarioCorreo}</Text>
-                  <Text style={{ color: '#0A8F4A' }}>Te deben ${Number(c.importe).toFixed(2)}</Text>
-                </View>
-              ))}
-            </>
+              {/* Créditos */}
+              <View>
+                <Text style={styles.debtSectionTitle}>Te deben</Text>
+                {credits.length === 0 ? (
+                  <View style={styles.emptyDebtCard}>
+                    <Feather name="inbox" size={32} color="#999" />
+                    <Text style={styles.emptyDebtText}>Nadie te debe</Text>
+                  </View>
+                ) : (
+                  credits.map((c: any, idx: number) => (
+                    <View key={idx} style={styles.debtCard}>
+                      <View style={[styles.debtIcon, { backgroundColor: '#DFF4EA' }]}>
+                        <Feather name="arrow-down-left" size={20} color="#0A8F4A" />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.debtName}>{c.desdeUsuarioNombre || c.desdeUsuarioCorreo}</Text>
+                        <Text style={styles.debtLabel}>Te debe</Text>
+                      </View>
+                      <Text style={[styles.debtAmount, { color: '#0A8F4A' }]}>
+                        ${Number(c.importe).toFixed(2)}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
           )}
         </View>
       )}
@@ -192,25 +346,43 @@ export default function Grupo({ route, navigation }: any) {
 
       {/* Modal for + options */}
       <Modal visible={optionsVisible} animationType="slide" transparent>
-        <RNTouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setOptionsVisible(false)}>
+        <RNTouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setOptionsVisible(false)}
+        >
           <TouchableWithoutFeedback>
             <View style={styles.modalContent}>
-              <Text style={{ fontWeight: '700', marginBottom: 8 }}>¿Qué querés hacer?</Text>
-              <TouchableOpacity 
-                style={[styles.modalButton, membersCount === 0 && { opacity: 0.5 }]} 
-                disabled={membersCount === 0} 
-                onPress={() => { 
-                  setOptionsVisible(false); 
-                  navigation.navigate('AddGasto', { grupoId, nombre }); 
+              <Text style={styles.modalTitle}>¿Qué querés hacer?</Text>
+
+              <TouchableOpacity
+                style={[styles.modalButton, membersCount === 0 && { opacity: 0.5 }]}
+                disabled={membersCount === 0}
+                onPress={() => {
+                  setOptionsVisible(false);
+                  navigation.navigate('AddGasto', { grupoId, nombre });
                 }}
               >
-                <Text style={styles.modalButtonText}>Añadir Gastos</Text>
+                <Feather name="plus-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.modalButtonText}>Añadir Gasto</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButtonSecondary]} onPress={() => { setOptionsVisible(false); handleInvite(); }}>
+
+              <TouchableOpacity
+                style={styles.modalButtonSecondary}
+                onPress={() => {
+                  setOptionsVisible(false);
+                  handleInvite();
+                }}
+              >
+                <Feather name="user-plus" size={20} color="#033E30" style={{ marginRight: 8 }} />
                 <Text style={styles.modalButtonTextSecondary}>Invitar a alguien</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ marginTop: 12, alignItems: 'center' }} onPress={() => setOptionsVisible(false)}>
-                <Text style={{ color: '#666' }}>Cancelar</Text>
+
+              <TouchableOpacity
+                style={{ marginTop: 12, alignItems: 'center', paddingVertical: 8 }}
+                onPress={() => setOptionsVisible(false)}
+              >
+                <Text style={{ color: '#666', fontSize: 15 }}>Cancelar</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
@@ -221,25 +393,276 @@ export default function Grupo({ route, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E6F4F1' },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 12, paddingTop: 60, backgroundColor: '#fff' },
-  back: { fontSize: 28, color: '#033E30', width: 32 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#033E30' },
-  headerSubtitle: { color: '#666', fontSize: 12 },
-  settings: { fontSize: 20 },
-  balanceBox: { backgroundColor: '#fff', padding: 16, alignItems: 'center' },
-  balanceLabel: { color: '#666' },
-  balanceAmount: { fontSize: 28, fontWeight: '700', marginTop: 8 },
-  totalSpent: { color: '#666', marginTop: 6 },
-  avatarCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#033E30', alignItems: 'center', justifyContent: 'center' },
-  tabsRow: { flexDirection: 'row', padding: 12, gap: 8, backgroundColor: '#E6F4F1' },
-  tab: { flex: 1, padding: 10, borderRadius: 8, alignItems: 'center' },
-  recentHeader: { padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  fab: { position: 'absolute', right: 20, bottom: 30, width: 56, height: 56, borderRadius: 28, backgroundColor: '#033E30', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
-  modalContent: { backgroundColor: '#fff', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  modalButton: { backgroundColor: '#033E30', padding: 12, borderRadius: 8, marginBottom: 8, alignItems: 'center' },
-  modalButtonText: { color: '#fff', fontWeight: '700' },
-  modalButtonSecondary: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginBottom: 8, alignItems: 'center', borderWidth: 1, borderColor: '#e6eee9' },
-  modalButtonTextSecondary: { color: '#033E30', fontWeight: '700' },
-});
+  container: {
+    flex: 1,
+    backgroundColor: '#E6F4F1'
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    paddingTop: 60,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e6eee9',
+  },
+  back: {
+    fontSize: 28,
+    color: '#033E30',
+    width: 32,
+    fontWeight: '300',
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  emojiHeader: {
+    fontSize: 20,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#033E30'
+  },
+  headerSubtitle: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  balanceBox: {
+    backgroundColor: '#fff',
+    padding: 20,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e6eee9',
+  },
+  balanceLabel: {
+    color: '#666',
+    fontSize: 14,
+  },
+  balanceAmount: {
+    fontSize: 32,
+    fontWeight: '700',
+    marginTop: 8,
+    color: '#033E30',
+  },
+  totalSpent: {
+    color: '#666',
+    marginTop: 4,
+    fontSize: 13,
+  },
+  avatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#033E30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 8,
+    backgroundColor: '#E6F4F1'
+  },
+  tab: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+  recentHeader: {
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#E6F4F1',
+  },
+  badge: {
+    backgroundColor: '#DFF4EA',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#033E30',
+  },
+  expenseCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e6eee9',
+  },
+  expenseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  expenseIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DFF4EA',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expenseTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#033E30',
+    marginBottom: 4,
+  },
+  expenseMeta: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  expenseDate: {
+    fontSize: 11,
+    color: '#999',
+  },
+  expenseAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#033E30',
+    marginBottom: 6,
+  },
+  participantsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#f6f9f7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  participantsBadgeText: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '600',
+  },
+  debtSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#033E30',
+    marginBottom: 12,
+  },
+  emptyDebtCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e6eee9',
+  },
+  emptyDebtText: {
+    fontSize: 15,
+    color: '#666',
+    marginTop: 12,
+    fontWeight: '600',
+  },
+  debtCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e6eee9',
+  },
+  debtIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  debtName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#033E30',
+    marginBottom: 2,
+  },
+  debtLabel: {
+    fontSize: 12,
+    color: '#666',
+  },
+  debtAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#033E30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    },
+      modalBackdrop: {
+        flex: 1,
+        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.5)'
+      },
+      modalContent: {
+        backgroundColor: '#fff',
+        padding: 20,
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        paddingBottom: 40,
+      },
+      modalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 16,
+        color: '#033E30',
+      },
+      modalButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#033E30',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+      },
+      modalButtonText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 16,
+      },
+      modalButtonSecondary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: '#e6eee9'
+      },
+      modalButtonTextSecondary: {
+        color: '#033E30',
+        fontWeight: '700',
+        fontSize: 16,
+      },
+    });

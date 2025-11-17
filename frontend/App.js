@@ -10,6 +10,7 @@ import CrearGrupo from './src/screens/CrearGrupo';
 import UnirseGrupo from './src/screens/UnirseGrupo';
 import Grupo from './src/screens/Grupo';
 import AddGasto from './src/screens/AddGasto';
+import ConfiguracionGrupo from './src/screens/ConfiguracionGrupo';
 import MainTabs from './src/navigation/MainTabs';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ProfileProvider } from './src/contexts/ProfileContext';
@@ -145,6 +146,7 @@ function AppNavigator() {
           <Stack.Screen key="InvitarMiembro" name="InvitarMiembro" component={require('./src/screens/InvitarMiembro').default} />
           <Stack.Screen key="AddGasto" name="AddGasto" component={AddGasto} />
           <Stack.Screen key="PantallaPerfil" name="PantallaPerfil" component={require('./src/screens/PantallaPerfil').default} />
+          <Stack.Screen key="ConfiguracionGrupo" name="ConfiguracionGrupo" component={ConfiguracionGrupo} />
         </>
       ) : (
         <>

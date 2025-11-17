@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
@@ -14,6 +14,8 @@ export default function UnirseGrupo({ navigation }: any) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
 
+  const processingCode = useRef(false);
+
   useEffect(() => {
     requestCameraPermission();
   }, []);
@@ -24,6 +26,11 @@ export default function UnirseGrupo({ navigation }: any) {
   };
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
+
+    if (processingCode.current) return;
+
+    processingCode.current = true;
+
     setScanned(true);
     setShowScanner(false);
     setToken(data);

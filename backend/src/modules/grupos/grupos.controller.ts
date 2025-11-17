@@ -106,3 +106,89 @@ export async function obtenerBalance(req: Request, res: Response) {
     return res.status(status).json({ error: e?.message || 'INTERNAL_ERROR' });
   }
 }
+
+// 🆕 NUEVAS FUNCIONES DE CONFIGURACIÓN
+
+export async function actualizarGrupo(req: Request, res: Response) {
+  try {
+    const firebaseUid = (req as AuthRequest).user?.uid;
+    if (!firebaseUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const { grupoId } = (req as any).validated?.params || req.params;
+    const { nombre, descripcion } = req.body;
+
+    const result = await svc.actualizarGrupo({
+      firebaseUid,
+      grupoId,
+      nombre,
+      descripcion,
+    });
+
+    return res.json(result);
+  } catch (e: any) {
+    const status = e?.status || 500;
+    return res.status(status).json({ error: e?.message || 'INTERNAL_ERROR' });
+  }
+}
+
+export async function eliminarMiembro(req: Request, res: Response) {
+  try {
+    const firebaseUid = (req as AuthRequest).user?.uid;
+    if (!firebaseUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const { grupoId, usuarioId } = req.params;
+
+    const result = await svc.eliminarMiembro({
+      firebaseUid,
+      grupoId,
+      usuarioId,
+    });
+
+    return res.json(result);
+  } catch (e: any) {
+    const status = e?.status || 500;
+    return res.status(status).json({ error: e?.message || 'INTERNAL_ERROR' });
+  }
+}
+
+export async function cambiarRolMiembro(req: Request, res: Response) {
+  try {
+    const firebaseUid = (req as AuthRequest).user?.uid;
+    if (!firebaseUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const { grupoId, usuarioId } = req.params;
+    const { rol } = req.body;
+
+    const result = await svc.cambiarRolMiembro({
+      firebaseUid,
+      grupoId,
+      usuarioId,
+      rol,
+    });
+
+    return res.json(result);
+  } catch (e: any) {
+    const status = e?.status || 500;
+    return res.status(status).json({ error: e?.message || 'INTERNAL_ERROR' });
+  }
+}
+
+
+export async function eliminarGrupo(req: Request, res: Response) {
+  try {
+    const firebaseUid = (req as AuthRequest).user?.uid;
+    if (!firebaseUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const { grupoId } = (req as any).validated?.params || req.params;
+
+    const result = await svc.eliminarGrupo({
+      firebaseUid,
+      grupoId,
+    });
+
+    return res.json(result);
+  } catch (e: any) {
+    const status = e?.status || 500;
+    return res.status(status).json({ error: e?.message || 'INTERNAL_ERROR' });
+  }
+}

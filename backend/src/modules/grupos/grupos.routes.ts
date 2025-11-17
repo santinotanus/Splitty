@@ -4,7 +4,6 @@ import { validate } from '../../middlewares/validate';
 import * as ctrl from './grupos.controller';
 import { crearGrupoSchema, grupoIdParamsSchema, crearInviteLinkSchema, joinByInviteSchema, addMembersSchema } from './grupos.schemas';
 
-// Router should allow params when mounted; use default Router
 const r = Router();
 
 r.post('/', requireAuth, validate(crearGrupoSchema), ctrl.crearGrupo);
@@ -16,6 +15,10 @@ r.post('/join-by-invite', requireAuth, validate(joinByInviteSchema), ctrl.joinBy
 r.post('/:grupoId/add-members', requireAuth, validate(addMembersSchema), ctrl.addMembers);
 r.get('/:grupoId/balance', requireAuth, validate(grupoIdParamsSchema), ctrl.obtenerBalance);
 
-export default r;
+// 🆕 Rutas de configuración
+r.put('/:grupoId', requireAuth, validate(grupoIdParamsSchema), ctrl.actualizarGrupo);
+r.delete('/:grupoId/miembros/:usuarioId', requireAuth, ctrl.eliminarMiembro);
+r.put('/:grupoId/miembros/:usuarioId/rol', requireAuth, ctrl.cambiarRolMiembro);
+r.delete('/:grupoId', requireAuth, validate(grupoIdParamsSchema), ctrl.eliminarGrupo);
 
-
+export = r; //

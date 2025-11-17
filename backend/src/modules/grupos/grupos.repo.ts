@@ -1,5 +1,15 @@
 import { db } from '../../config/db';
 
+export async function getUserBalance(grupoId: string, usuarioId: string) {
+  const result = await db('dbo.saldos_grupo')
+    .where({ grupo_id: grupoId, usuario_id: usuarioId })
+    .select('balance')
+    .first();
+
+  // Si no tiene registro, el saldo es 0
+  return result?.balance ? Number(result.balance) : 0;
+}
+
 export async function createGroup(nombre: string, descripcion?: string) {
   const result = await db.raw(
     `INSERT INTO dbo.grupos (id, nombre, descripcion, fecha_creacion)
@@ -16,6 +26,61 @@ export async function addMember(grupoId: string, usuarioId: string, rol: string 
   return db('dbo.miembros_grupo').insert({ grupo_id: grupoId, usuario_id: usuarioId, rol, fecha_creacion: db.raw('SYSUTCDATETIME()') });
 }
 
+export async function updateGroup(grupoId: string, data: { nombre?: string; descripcion?: string }) {
+  const updates: any = {};
+  if (data.nombre !== undefined) updates.nombre = data.nombre;
+  if (data.descripcion !== undefined) updates.descripcion = data.descripcion;
+
+  if (Object.keys(updates).length === 0) return;
+
+  return db('dbo.grupos')
+    .where({ id: grupoId })
+    .update(updates);
+}
+
+export async function removeMember(grupoId: string, usuarioId: string) {
+  return db.transaction(async (trx) => {
+    // 1. Eliminamos el registro de saldo (que bloqueaba el borrado)
+    await trx('dbo.saldos_grupo')
+      .where({ grupo_id: grupoId, usuario_id: usuarioId })
+      .delete();
+
+    // 2. Eliminamos al miembro del grupo
+    await trx('dbo.miembros_grupo')
+      .where({ grupo_id: grupoId, usuario_id: usuarioId })
+      .delete();
+  });
+}
+
+export async function updateMemberRole(grupoId: string, usuarioId: string, rol: string) {
+  return db('dbo.miembros_grupo')
+    .where({ grupo_id: grupoId, usuario_id: usuarioId })
+    .update({ rol });
+}
+
+export async function countAdmins(grupoId: string) {
+  const result = await db('dbo.miembros_grupo')
+    .where({ grupo_id: grupoId, rol: 'admin' })
+    .count('usuario_id as count')
+    .first();
+
+  return result?.count ? parseInt(result.count.toString()) : 0;
+}
+
+export async function countMembers(grupoId: string) {
+  const result = await db('dbo.miembros_grupo')
+    .where({ grupo_id: grupoId })
+    .count('usuario_id as count')
+    .first();
+
+  return result?.count ? parseInt(result.count.toString()) : 0;
+}
+
+export async function deleteGroup(grupoId: string) {
+  return db('dbo.grupos')
+    .where({ id: grupoId })
+    .delete();
+}
 
 export async function listMembers(grupoId: string) {
   return db('dbo.miembros_grupo as m')

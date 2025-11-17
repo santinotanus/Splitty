@@ -305,3 +305,176 @@ export async function obtenerBalance({ firebaseUid, grupoId }: { firebaseUid: st
   }
   return await repo.listBalances(grupoId);
 }
+
+// 🆕 NUEVAS FUNCIONES DE CONFIGURACIÓN
+export async function actualizarGrupo({
+  firebaseUid,
+  grupoId,
+  nombre,
+  descripcion,
+}: {
+  firebaseUid: string;
+  grupoId: string;
+  nombre?: string;
+  descripcion?: string;
+}) {
+  const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
+  if (!userId) {
+    const err = new Error('USER_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+
+  const existe = await commonRepo.findGroupById(grupoId);
+  if (!existe) {
+    const err = new Error('GROUP_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+
+  const rol = await repo.getMemberRole(grupoId, userId);
+  if (!rol || rol !== 'admin') {
+    const err = new Error('FORBIDDEN');
+    (err as any).status = 403;
+    throw err;
+  }
+
+  await repo.updateGroup(grupoId, { nombre, descripcion });
+
+  return { ok: true };
+}
+
+export async function eliminarMiembro({
+  firebaseUid,
+  grupoId,
+  usuarioId,
+}: {
+  firebaseUid: string;
+  grupoId: string;
+  usuarioId: string;
+}) {
+  // 1. Validar Admin (código que ya tenías)
+  const adminId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
+  if (!adminId) {
+    const err = new Error('USER_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+
+  const existe = await commonRepo.findGroupById(grupoId);
+  if (!existe) {
+    const err = new Error('GROUP_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+
+  const rol = await repo.getMemberRole(grupoId, adminId);
+  if (!rol || rol !== 'admin') {
+    const err = new Error('FORBIDDEN'); // Solo admin puede borrar
+    (err as any).status = 403;
+    throw err;
+  }
+
+  if (adminId === usuarioId) {
+    const err = new Error('CANNOT_REMOVE_SELF');
+    (err as any).status = 400;
+    throw err;
+  }
+
+  // 🟢 2. NUEVA VALIDACIÓN: Verificar que el saldo sea 0
+  const saldo = await repo.getUserBalance(grupoId, usuarioId);
+
+  // Si el saldo es mayor a 0.01 (o menor a -0.01), no dejamos borrar
+  if (Math.abs(saldo) > 0.01) {
+    const err = new Error('CANNOT_REMOVE_MEMBER_WITH_BALANCE');
+    (err as any).status = 400;
+    // Este mensaje le llegará al frontend
+    (err as any).message = 'No se puede eliminar al miembro porque su saldo no es 0.';
+    throw err;
+  }
+
+  // 3. Proceder a eliminar (ahora usará la transacción del repo)
+  await repo.removeMember(grupoId, usuarioId);
+
+  return { ok: true };
+}
+
+export async function cambiarRolMiembro({
+  firebaseUid,
+  grupoId,
+  usuarioId,
+  rol,
+}: {
+  firebaseUid: string;
+  grupoId: string;
+  usuarioId: string;
+  rol: string;
+}) {
+  const adminId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
+  if (!adminId) {
+    const err = new Error('USER_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+
+  const existe = await commonRepo.findGroupById(grupoId);
+  if (!existe) {
+    const err = new Error('GROUP_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+
+  const adminRole = await repo.getMemberRole(grupoId, adminId);
+  if (!adminRole || adminRole !== 'admin') {
+    const err = new Error('FORBIDDEN');
+    (err as any).status = 403;
+    throw err;
+  }
+
+  const targetRole = await repo.getMemberRole(grupoId, usuarioId);
+  if (targetRole === 'admin' && rol !== 'admin') {
+    const admins = await repo.countAdmins(grupoId);
+    if (admins <= 1) {
+      const err = new Error('CANNOT_DEMOTE_LAST_ADMIN');
+      (err as any).status = 400;
+      throw err;
+    }
+  }
+
+  await repo.updateMemberRole(grupoId, usuarioId, rol);
+
+  return { ok: true };
+}
+
+export async function eliminarGrupo({
+  firebaseUid,
+  grupoId,
+}: {
+  firebaseUid: string;
+  grupoId: string;
+}) {
+  const userId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
+  if (!userId) {
+    const err = new Error('USER_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+
+  const existe = await commonRepo.findGroupById(grupoId);
+  if (!existe) {
+    const err = new Error('GROUP_NOT_FOUND');
+    (err as any).status = 404;
+    throw err;
+  }
+
+  const rol = await repo.getMemberRole(grupoId, userId);
+  if (!rol || rol !== 'admin') {
+    const err = new Error('FORBIDDEN');
+    (err as any).status = 403;
+    throw err;
+  }
+
+  await repo.deleteGroup(grupoId);
+
+  return { ok: true };
+}

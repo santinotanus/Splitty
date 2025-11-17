@@ -16,6 +16,8 @@ import { useGrupo } from '../viewmodels/useGrupo';
 import { useAuth } from '../contexts/AuthContext';
 import * as balancesApi from '../api/balances';
 import * as gastosApi from '../api/gastos';
+import * as Clipboard from 'expo-clipboard';
+import { Linking } from 'react-native';
 
 export default function Grupo({ route, navigation }: any) {
   const { grupoId, nombre, emoji, descripcion } = route.params || {};
@@ -293,18 +295,20 @@ export default function Grupo({ route, navigation }: any) {
                   </View>
                 ) : (
                   debts.map((d: any, idx: number) => (
-                    <View key={idx} style={styles.debtCard}>
+                    <TouchableOpacity key={idx} style={styles.debtCard} onPress={() => navigation.navigate('DebtDetail', { debt: d, grupoId, deudorId: currentMember?.id })}>
                       <View style={[styles.debtIcon, { backgroundColor: '#FFE6E6' }]}>
                         <Feather name="arrow-up-right" size={20} color="#B00020" />
                       </View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={styles.debtName}>{d.haciaUsuarioNombre || d.haciaUsuarioCorreo}</Text>
-                        <Text style={styles.debtLabel}>Le debés</Text>
+                        <Text style={styles.debtLabel}>{d.gastoDescripcion || 'Pago pendiente'}</Text>
                       </View>
-                      <Text style={[styles.debtAmount, { color: '#B00020' }]}>
-                        ${Number(d.importe).toFixed(2)}
-                      </Text>
-                    </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.debtAmount, { color: '#B00020' }]}>
+                          ${Number(d.importe).toFixed(2)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
                   ))
                 )}
               </View>

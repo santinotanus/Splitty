@@ -117,6 +117,7 @@ export const loginUser = async (credentials: {
 export const syncUserWithBackend = async (userData: {
   nombre: string;
   fechaNacimiento: string; // YYYY-MM-DD
+  clave_pago?: string | null;
 }) => {
   console.log('🔄 Iniciando sincronización con backend...');
   console.log('📦 Datos a enviar:', userData);
@@ -138,9 +139,15 @@ export const getCurrentUser = async () => {
 };
 
 // Actualizar datos del usuario autenticado
-export const updateUser = async (updateData: { nombre?: string }) => {
+export const updateUser = async (updateData: { nombre?: string; clave_pago?: string | null }) => {
   const response = await api.put("/users/me", updateData);
   return response.data;
+};
+
+// Verificar disponibilidad de Alias/CVU (clave_pago)
+export const checkClaveAvailable = async (clave: string) => {
+  const response = await api.get('/users/clave-available', { params: { clave } });
+  return response.data as { available: boolean };
 };
 
 // Test de conexión

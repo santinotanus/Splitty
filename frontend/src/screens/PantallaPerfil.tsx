@@ -20,7 +20,7 @@ import { useProfile } from '../contexts/ProfileContext';
 import { auth } from '../config/firebase';
 import { updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
-import { updateUser, getCurrentUser } from '../api/client';
+import { updateUser, getCurrentUser, checkClaveAvailable } from '../api/client';
 
 export default function PantallaPerfil({ navigation }: any) {
   const { user } = useAuth();
@@ -29,11 +29,13 @@ export default function PantallaPerfil({ navigation }: any) {
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [clavePago, setClavePago] = useState('');
   
   // Modal states
   const [showNameModal, setShowNameModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showClaveModal, setShowClaveModal] = useState(false);
   
   // Form states
   const [newName, setNewName] = useState('');
@@ -41,6 +43,7 @@ export default function PantallaPerfil({ navigation }: any) {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [newClave, setNewClave] = useState('');
 
   // Load user data
   useEffect(() => {
@@ -54,6 +57,7 @@ export default function PantallaPerfil({ navigation }: any) {
       // Load from backend
       const backendUser = await getCurrentUser();
       setNombre(backendUser?.nombre || user.displayName || '');
+      setClavePago(backendUser?.clave_pago || '');
       setEmail(user.email || '');
       
       // Load profile image from ProfileContext (Firestore + cache)
@@ -63,6 +67,52 @@ export default function PantallaPerfil({ navigation }: any) {
       setNombre(user.displayName || '');
       setEmail(user.email || '');
       // Profile image will use default from ProfileContext
+    }
+  };
+
+  const handleEditClave = () => {
+    setNewClave(clavePago);
+    setShowClaveModal(true);
+  };
+
+  const handleSaveClave = async () => {
+    if (!newClave.trim()) {
+      Alert.alert('Error', 'El Alias/CVU no puede estar vacío');
+      return;
+    }
+    if (newClave.trim().length > 50) {
+      Alert.alert('Error', 'El Alias/CVU no puede tener más de 50 caracteres');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Check availability first
+      try {
+        const { available } = await checkClaveAvailable(newClave.trim());
+        if (!available) {
+          Alert.alert('Error', 'El Alias/CVU ya está en uso por otro usuario');
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('No se pudo verificar disponibilidad del alias:', err);
+        // let the server handle uniqueness
+      }
+
+      await updateUser({ clave_pago: newClave.trim() });
+      setClavePago(newClave.trim());
+      setShowClaveModal(false);
+      Alert.alert('Éxito', 'Alias/CVU actualizado correctamente');
+    } catch (error: any) {
+      console.error('Error updating clave_pago:', error);
+      if (error.response?.status === 409) {
+        Alert.alert('Error', 'El Alias/CVU ya está en uso por otro usuario');
+      } else {
+        Alert.alert('Error', error.response?.data?.error || 'No se pudo actualizar el Alias/CVU');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -295,6 +345,20 @@ export default function PantallaPerfil({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
+        {/* Alias / CVU Card */}
+        <View style={styles.card}>
+          <View style={styles.cardIcon}>
+            <Feather name="hash" size={20} color="#666" />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardLabel}>Alias / CVU</Text>
+            <Text style={styles.cardValue}>{clavePago || 'No establecido'}</Text>
+          </View>
+          <TouchableOpacity onPress={handleEditClave} style={styles.editButton}>
+            <Feather name="edit-2" size={18} color="#666" />
+          </TouchableOpacity>
+        </View>
+
         {/* Password Card */}
         <View style={styles.card}>
           <View style={styles.cardIcon}>
@@ -443,6 +507,50 @@ export default function PantallaPerfil({ navigation }: any) {
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonSave]}
                 onPress={handleSavePassword}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonTextSave}>Guardar</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Edit Alias/CVU Modal */}
+      <Modal
+        visible={showClaveModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowClaveModal(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Editar Alias / CVU</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={newClave}
+              onChangeText={setNewClave}
+              placeholder="Alias o CVU"
+              autoCapitalize="none"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowClaveModal(false)}
+              >
+                <Text style={styles.modalButtonTextCancel}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSave]}
+                onPress={handleSaveClave}
                 disabled={loading}
               >
                 {loading ? (

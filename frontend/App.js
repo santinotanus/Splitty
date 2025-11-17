@@ -144,6 +144,7 @@ function AppNavigator() {
           <Stack.Screen key="CrearGrupo" name="CrearGrupo" component={CrearGrupo} />
           <Stack.Screen key="UnirseGrupo" name="UnirseGrupo" component={UnirseGrupo} />
           <Stack.Screen key="Grupo" name="Grupo" component={Grupo} />
+          <Stack.Screen key="DebtDetail" name="DebtDetail" component={require('./src/screens/DebtDetail').default} />
           <Stack.Screen key="InvitarMiembro" name="InvitarMiembro" component={require('./src/screens/InvitarMiembro').default} />
           <Stack.Screen key="AddGasto" name="AddGasto" component={AddGasto} />
           <Stack.Screen key="PantallaPerfil" name="PantallaPerfil" component={require('./src/screens/PantallaPerfil').default} />

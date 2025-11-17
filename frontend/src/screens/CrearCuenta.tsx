@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuth } from '../contexts/AuthContext';
+import { checkClaveAvailable } from '../api/client';
 
 export default function CrearCuenta({ navigation }: any) {
   const { register } = useAuth();
@@ -23,6 +24,7 @@ export default function CrearCuenta({ navigation }: any) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmarPassword, setConfirmarPassword] = useState('');
+  const [clavePago, setClavePago] = useState('');
   const [aceptaTyC, setAceptaTyC] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -72,6 +74,16 @@ export default function CrearCuenta({ navigation }: any) {
       return;
     }
 
+    if (!clavePago.trim()) {
+      Alert.alert('Error', 'Por favor ingresa tu Alias o CVU (clave de pago).');
+      return;
+    }
+
+    if (clavePago.trim().length > 50) {
+      Alert.alert('Error', 'El Alias/CVU no puede tener más de 50 caracteres.');
+      return;
+    }
+
     if (!password) {
       Alert.alert('Error', 'Por favor ingresa una contraseña.');
       return;
@@ -99,12 +111,26 @@ export default function CrearCuenta({ navigation }: any) {
       console.log('Nombre:', nombre);
       console.log('Fecha:', parseFechaInput(fecha));
 
+      // Verificar disponibilidad del alias en backend antes de crear la cuenta
+      try {
+        const { available } = await checkClaveAvailable(clavePago.trim());
+        if (!available) {
+          Alert.alert('Error', 'El Alias/CVU ya está en uso. Elige otro.');
+          setLoading(false);
+          return;
+        }
+      } catch (err) {
+        // Si falla la verificación por red, permitir continuar y confiar en la validación del servidor
+        console.warn('No se pudo verificar disponibilidad del alias, se intentará crear igual', err);
+      }
+
       // Usar el register del AuthContext que maneja Firebase + Backend
       await register(
         email.trim(),
         password,
         nombre.trim(),
-        parseFechaInput(fecha)
+        parseFechaInput(fecha),
+        clavePago.trim()
       );
 
       console.log('✅ Cuenta creada exitosamente');
@@ -198,6 +224,19 @@ export default function CrearCuenta({ navigation }: any) {
           autoCapitalize="none"
           value={email}
           onChangeText={setEmail}
+          editable={!loading}
+          autoCorrect={false}
+        />
+
+        {/* Alias / CVU */}
+        <Text style={styles.label}>Alias / CVU</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Alias o CVU (ej. mi_alias_123)"
+          placeholderTextColor="#999"
+          autoCapitalize="none"
+          value={clavePago}
+          onChangeText={setClavePago}
           editable={!loading}
           autoCorrect={false}
         />

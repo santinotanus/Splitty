@@ -36,6 +36,25 @@ export async function getGroupSummary(groupId: string) {
   return res.data;
 }
 
+/**
+ * Upload a receipt image (base64) for a debt between deudor and acreedor in a group
+ * POST /groups/:groupId/receipts
+ */
+export async function uploadReceipt(groupId: string, deudorId: string, acreedorId: string, filename: string | undefined, base64Data: string) {
+  const payload = { deudorId, acreedorId, filename, data: base64Data };
+  const res = await api.post(`/groups/${encodeURIComponent(groupId)}/receipts`, payload);
+  return res.data;
+}
+
+/**
+ * Submit to backend a URL for a previously-uploaded receipt (client-side upload)
+ */
+export async function uploadReceiptUrl(groupId: string, deudorId: string, acreedorId: string, filename: string | undefined, url: string) {
+  const payload = { deudorId, acreedorId, filename, url };
+  const res = await api.post(`/groups/${encodeURIComponent(groupId)}/receipts`, payload);
+  return res.data;
+}
+
 export default {
   getMyBalance,
   getMyDebts,

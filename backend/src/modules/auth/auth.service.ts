@@ -5,6 +5,7 @@ export async function syncUser(input: {
   email: string;
   nombre: string;
   fechaNacimiento: string;
+  clave_pago?: string | null;
 }) {
   console.log('🔄 syncUser - Input:', {
     firebaseUid: input.firebaseUid,
@@ -36,6 +37,15 @@ export async function syncUser(input: {
     throw err;
   }
 
+  if (input.clave_pago) {
+    const existingByClave = await repo.findUserByClavePago(String(input.clave_pago));
+    if (existingByClave && existingByClave.firebase_uid !== input.firebaseUid) {
+      const err = new Error('CLAVE_PAGO_ALREADY_IN_USE');
+      (err as any).status = 409;
+      throw err;
+    }
+  }
+
   const fechaNacimientoDate = new Date(input.fechaNacimiento);
 
   console.log('📝 Insertando nuevo usuario en DB...');
@@ -43,7 +53,8 @@ export async function syncUser(input: {
     firebase_uid: input.firebaseUid,
     nombre: input.nombre,
     correo: input.email,
-    fechaNacimiento: fechaNacimientoDate
+    fechaNacimiento: fechaNacimientoDate,
+    clave_pago: input.clave_pago ?? null
   });
 
   console.log('✅ Usuario creado con ID:', id);

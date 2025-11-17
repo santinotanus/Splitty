@@ -6,6 +6,9 @@ import * as ctrl from './users.controller';
 
 const r = Router();
 
+// Public check for alias/CVU availability
+r.get('/clave-available', ctrl.checkClaveAvailable);
+
 r.get('/me', requireAuth, ctrl.getMe);
 r.put('/me', requireAuth, validate(updateMeSchema), ctrl.updateMe);
 // Buscar usuario por email (p. ej. para invitar/agregar amigos)

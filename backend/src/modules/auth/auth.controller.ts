@@ -19,7 +19,7 @@ export async function syncUser(req: Request, res: Response) {
       return res.status(401).json({ error: 'UNAUTHORIZED' });
     }
 
-    const { nombre, fechaNacimiento } = req.body;
+    const { nombre, fechaNacimiento, clave_pago } = req.body;
 
     if (!nombre || !fechaNacimiento) {
       return res.status(400).json({
@@ -32,7 +32,8 @@ export async function syncUser(req: Request, res: Response) {
       firebaseUid,
       email,
       nombre,
-      fechaNacimiento
+      fechaNacimiento,
+      clave_pago
     });
 
     console.log('✅ syncUser exitoso:', result.id);

@@ -12,7 +12,8 @@ try {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     projectId: 'splitty-102b4',
-    databaseURL: `https://splitty-102b4.firebaseio.com` // 🔥 NUEVO
+    databaseURL: `https://splitty-102b4.firebaseio.com`, // 🔥 NUEVO
+    storageBucket: 'splitty-102b4.appspot.com' // asegúrate que este bucket existe en Firebase Storage
   });
 
   console.log('✅ Firebase Admin SDK inicializado correctamente');

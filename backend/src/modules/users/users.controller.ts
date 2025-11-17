@@ -32,11 +32,16 @@ export async function updateMe(req: Request, res: Response) {
   }
 
   try {
-    const { nombre } = req.body;
-    await svc.updateMe({ firebaseUid, nombre });
+    const { nombre, clave_pago } = req.body;
+    await svc.updateMe({ firebaseUid, nombre, clave_pago });
     res.json({ ok: true });
   } catch (err) {
     console.error('Error en updateMe:', err);
+    // Detectar error de constraint UNIQUE sobre clave_pago
+    const message = (err as any)?.message || '';
+    if (message && message.includes('UQ_Usuarios_ClavePago')) {
+      return res.status(409).json({ error: 'CLAVE_PAGO_ALREADY_IN_USE' });
+    }
     res.status(500).json({ error: 'INTERNAL_ERROR' });
   }
 }
@@ -50,6 +55,18 @@ export async function findByEmail(req: Request, res: Response) {
     return res.json(user);
   } catch (e: any) {
     console.error('Error en findByEmail:', e);
+    return res.status(500).json({ error: 'INTERNAL_ERROR' });
+  }
+}
+
+export async function checkClaveAvailable(req: Request, res: Response) {
+  try {
+    const { clave } = req.query as any;
+    if (!clave || typeof clave !== 'string') return res.status(400).json({ error: 'MISSING_CLAVE' });
+    const available = await svc.isClaveAvailable({ clave: String(clave) });
+    return res.json({ available });
+  } catch (e: any) {
+    console.error('Error en checkClaveAvailable:', e);
     return res.status(500).json({ error: 'INTERNAL_ERROR' });
   }
 }

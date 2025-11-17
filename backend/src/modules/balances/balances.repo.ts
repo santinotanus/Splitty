@@ -31,6 +31,7 @@ export async function getMyDebts(grupoId: string, usuarioId: string) {
       'm.usuario_id',
       'u.nombre as usuario_nombre',
       'u.correo as usuario_correo',
+      'u.clave_pago as usuario_clave_pago',
       's.balance'
     );
 
@@ -46,18 +47,36 @@ export async function getMyDebts(grupoId: string, usuarioId: string) {
   const myDebt = Math.abs(myBalance);
 
   // Distribuir la deuda proporcionalmente
-  return creditors.map(c => {
+  // Para cada creditor, buscar si existe un comprobante ya subido para este par (deudor -> acreedor)
+  const debts = await Promise.all(creditors.map(async c => {
     const credit = parseFloat(c.balance.toString());
     const proportion = credit / totalCredit;
     const debt = myDebt * proportion;
-    
+
+    // Buscar comprobante más reciente
+    const receipt = await db('dbo.saldos_comprobantes')
+      .where({ grupo_id: grupoId, deudor_id: usuarioId, acreedor_id: c.usuario_id })
+      .orderBy('created_at', 'desc')
+      .first();
+
+    // Buscar un gasto representativo (por qué): gasto reciente pagado por el acreedor
+    const recentGasto = await db('dbo.gastos')
+      .where({ grupo_id: grupoId, pagador_id: c.usuario_id })
+      .orderBy('fecha_pago', 'desc')
+      .first();
+
     return {
       haciaUsuario: c.usuario_id,
       haciaUsuarioNombre: c.usuario_nombre,
       haciaUsuarioCorreo: c.usuario_correo,
-      importe: Math.round(debt * 100) / 100 // Redondear a 2 decimales
+      haciaUsuarioClave: c.usuario_clave_pago,
+      importe: Math.round(debt * 100) / 100, // Redondear a 2 decimales
+      comprobanteUrl: receipt?.url || null,
+      gastoDescripcion: recentGasto?.descripcion || null
     };
-  }).filter(d => d.importe > 0.01); // Filtrar deudas muy pequeñas
+  }));
+
+  return debts.filter(d => d.importe > 0.01);
 }
 
 export async function getMyCredits(grupoId: string, usuarioId: string) {
@@ -184,5 +203,33 @@ export async function getGroupSummary(grupoId: string) {
     total: Math.round(total * 100) / 100,
     porUsuario: porUsuarioCompleto
   };
+}
+
+export async function insertReceipt({
+  grupoId,
+  deudorId,
+  acreedorId,
+  url,
+  uploadedBy
+}: {
+  grupoId: string;
+  deudorId: string;
+  acreedorId: string;
+  url: string;
+  uploadedBy: string;
+}) {
+  // Insertar en tabla saldos_comprobantes
+  const [idRow] = await db('dbo.saldos_comprobantes')
+    .insert({
+      grupo_id: grupoId,
+      deudor_id: deudorId,
+      acreedor_id: acreedorId,
+      url,
+      uploaded_by: uploadedBy,
+      created_at: db.fn.now()
+    })
+    .returning('id');
+
+  return { id: idRow?.id || null };
 }
 

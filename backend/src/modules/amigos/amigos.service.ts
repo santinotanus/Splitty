@@ -1,41 +1,6 @@
 import * as repo from './amigos.repo';
 import * as commonRepo from '../../repositories/common.repo';
 
-export async function enviarSolicitud({ firebaseUid, receptorId }: { firebaseUid: string; receptorId: string }) {
-  const solicitanteId = await commonRepo.getUserIdByFirebaseUid(firebaseUid);
-  if (!solicitanteId) {
-    const err = new Error('USER_NOT_FOUND');
-    (err as any).status = 404;
-    throw err;
-  }
-
-  if (solicitanteId === receptorId) {
-    const err = new Error('CANNOT_REQUEST_SELF');
-    (err as any).status = 400;
-    throw err;
-  }
-
-  const already = await repo.areAlreadyFriends(solicitanteId, receptorId);
-  if (already) {
-    const err = new Error('ALREADY_FRIENDS');
-    (err as any).status = 409;
-    throw err;
-  }
-
-  try {
-    const solicitudId = await repo.createFriendRequest(solicitanteId, receptorId);
-    return { id: solicitudId };
-  } catch (e: any) {
-    // Puede fallar por el índice único de pendiente por par
-    if (String(e?.message || '').toLowerCase().includes('unique') || String(e?.code || '').includes('2627')) {
-      const err = new Error('PENDING_REQUEST_EXISTS');
-      (err as any).status = 409;
-      throw err;
-    }
-    throw e;
-  }
-}
-
 const isUUID = (str: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
 

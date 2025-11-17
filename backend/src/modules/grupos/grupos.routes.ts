@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../middlewares/auth';
 import { validate } from '../../middlewares/validate';
 import * as ctrl from './grupos.controller';
-import { crearGrupoSchema, grupoIdParamsSchema, crearInviteLinkSchema, joinByInviteSchema, addMembersSchema } from './grupos.schemas';
+import { crearGrupoSchema, grupoIdParamsSchema, crearInviteLinkSchema, joinByInviteSchema, addMembersSchema, actualizarGrupoSchema} from './grupos.schemas';
 
 const r = Router();
 
@@ -16,9 +16,9 @@ r.post('/:grupoId/add-members', requireAuth, validate(addMembersSchema), ctrl.ad
 r.get('/:grupoId/balance', requireAuth, validate(grupoIdParamsSchema), ctrl.obtenerBalance);
 
 // 🆕 Rutas de configuración
-r.put('/:grupoId', requireAuth, validate(grupoIdParamsSchema), ctrl.actualizarGrupo);
+r.put('/:grupoId', requireAuth, validate(actualizarGrupoSchema), ctrl.actualizarGrupo);
 r.delete('/:grupoId/miembros/:usuarioId', requireAuth, ctrl.eliminarMiembro);
 r.put('/:grupoId/miembros/:usuarioId/rol', requireAuth, ctrl.cambiarRolMiembro);
 r.delete('/:grupoId', requireAuth, validate(grupoIdParamsSchema), ctrl.eliminarGrupo);
 
-export = r; //
+export = r;

@@ -167,7 +167,7 @@ export default function InvitarMiembro({ route, navigation }: any) {
         <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
           <Text style={styles.bigSectionTitle}>Añadir a un amigo</Text>
           <Text style={styles.sectionSubtitle}>Seleccioná un amigo para agregarlo directamente</Text>
-          
+
           {loadingFriends ? (
             <ActivityIndicator style={{ marginTop: 12 }} />
           ) : friends.length === 0 ? (
@@ -196,9 +196,9 @@ export default function InvitarMiembro({ route, navigation }: any) {
                       <Text style={styles.friendEmail}>{item.correo || ''}</Text>
                     </View>
                   </View>
-                  <TouchableOpacity 
-                    style={[styles.addPill, addingIds[item.id] && { opacity: 0.6 }]} 
-                    onPress={() => handleAddFriend(item.id)} 
+                  <TouchableOpacity
+                    style={[styles.addPill, addingIds[item.id] && { opacity: 0.6 }]}
+                    onPress={() => handleAddFriend(item.id)}
                     disabled={!!addingIds[item.id]}
                   >
                     {addingIds[item.id] ? (
@@ -222,11 +222,11 @@ export default function InvitarMiembro({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E6F4F1' },
-  header: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    padding: 16, 
-    paddingTop: 60, 
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    paddingTop: 60,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e6eee9'
@@ -235,30 +235,30 @@ const styles = StyleSheet.create({
   subtitle: { color: '#666', fontSize: 12, marginTop: 2 },
   card: { backgroundColor: '#fff', margin: 16, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e6eee9' },
   cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  emojiCircle: { 
-    width: 56, 
-    height: 56, 
-    borderRadius: 28, 
-    backgroundColor: '#DFF4EA', 
-    alignItems: 'center', 
-    justifyContent: 'center' 
+  emojiCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#DFF4EA',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   section: { marginTop: 16 },
   sectionTitle: { fontWeight: '700', fontSize: 15, color: '#033E30', marginBottom: 8 },
-  linkBox: { 
-    backgroundColor: '#f6f9f6', 
-    padding: 12, 
+  linkBox: {
+    backgroundColor: '#f6f9f6',
+    padding: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e6eee9'
   },
-  smallButton: { 
+  smallButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10, 
-    borderRadius: 8, 
+    padding: 10,
+    borderRadius: 8,
     backgroundColor: '#f6f9f6',
     borderWidth: 1,
     borderColor: '#e6eee9'
@@ -280,14 +280,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3
   },
-  qrPlaceholder: { 
+  qrPlaceholder: {
     width: 192,
     height: 192,
-    borderRadius: 12, 
-    borderWidth: 2, 
-    borderStyle: 'dashed', 
-    borderColor: '#e6e6e6', 
-    alignItems: 'center', 
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#e6e6e6',
+    alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f9f9f9'
   },
@@ -303,15 +303,15 @@ const styles = StyleSheet.create({
     borderColor: '#e6eee9',
     marginTop: 8
   },
-  friendCard: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    padding: 12, 
-    backgroundColor: '#fff', 
-    borderRadius: 12, 
-    marginBottom: 8, 
-    borderWidth: 1, 
+  friendCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
     borderColor: '#e6eee9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -319,22 +319,22 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1
   },
-  avatarSmall: { 
-    width: 44, 
-    height: 44, 
-    borderRadius: 22, 
-    backgroundColor: '#033E30', 
-    alignItems: 'center', 
-    justifyContent: 'center' 
+  avatarSmall: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#033E30',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   friendName: { fontWeight: '700', fontSize: 15, color: '#033E30' },
   friendEmail: { color: '#666', fontSize: 12, marginTop: 2 },
-  addPill: { 
+  addPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#033E30', 
-    paddingVertical: 8, 
-    paddingHorizontal: 14, 
-    borderRadius: 20 
+    backgroundColor: '#033E30',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20
   },
 });

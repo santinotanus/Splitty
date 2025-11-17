@@ -102,4 +102,12 @@ export async function listFriends(userId: string) {
   return aSide.unionAll([bSide]).orderBy('nombre');
 }
 
+export async function deleteFriendship(userIdA: string, userIdB: string) {
+  return db('dbo.amistades')
+    .where(function () {
+      this.where({ usuario_a: userIdA, usuario_b: userIdB })
+          .orWhere({ usuario_a: userIdB, usuario_b: userIdA });
+    })
+    .delete();
+}
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { getFriends, inviteByEmail as apiInviteByEmail, getPendingReceived, acceptRequest as apiAcceptRequest, rejectRequest as apiRejectRequest } from '../api/friends';
+import { getFriends, inviteByEmail as apiInviteByEmail, getPendingReceived, acceptRequest as apiAcceptRequest, rejectRequest as apiRejectRequest, deleteFriend as apiDeleteFriend} from '../api/friends';
 import { sendFriendRequest } from '../api/friends';
 import * as groupsApi from '../api/groups';
 
@@ -76,6 +76,17 @@ export function useAmigos() {
         }
     }, []);
 
+    const removeFriend = useCallback(async (amigoId: string) => {
+            try {
+                await apiDeleteFriend(amigoId);
+                // Recargar la lista para que desaparezca de la UI
+                await fetchFriends();
+            } catch (err) {
+                console.error('Error eliminando amigo', err);
+                throw err;
+            }
+        }, [fetchFriends]);
+
     const fetchPending = useCallback(async () => {
         try {
             setPendingLoading(true);
@@ -134,6 +145,15 @@ export function useAmigos() {
         }
     }, [fetchFriends]);
 
+    const refreshAll = useCallback(async () => {
+            // Ejecutamos ambas cargas en paralelo y esperamos a que terminen
+            // Usamos Promise.allSettled para que si una falla, la otra se cargue igual
+            await Promise.allSettled([
+                fetchFriends(),
+                fetchPending()
+            ]);
+        }, [fetchFriends, fetchPending]);
+
     const acceptPending = useCallback(async (solicitudId: string) => {
         try {
             await apiAcceptRequest(solicitudId);
@@ -156,5 +176,5 @@ export function useAmigos() {
         }
     }, [fetchPending]);
 
-    return { friends, loading, error, refresh: fetchFriends, addFriend, inviteByEmail, pendingRequests, pendingLoading, acceptPending, rejectPending };
+    return { friends, loading, error, refresh: refreshAll, addFriend, inviteByEmail, pendingRequests, pendingLoading, acceptPending, rejectPending, removeFriend};
 }

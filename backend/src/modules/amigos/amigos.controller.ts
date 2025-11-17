@@ -66,4 +66,19 @@ export async function listarAmigos(req: Request, res: Response) {
   }
 }
 
+export async function eliminarAmigo(req: Request, res: Response) {
+  try {
+    const firebaseUid = (req as AuthRequest).user?.uid;
+    if (!firebaseUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
+
+    const { amigoId } = (req as any).validated?.params || req.params;
+
+    const result = await svc.eliminarAmigo({ firebaseUid, amigoId });
+    return res.json(result);
+  } catch (e: any) {
+    const status = e?.status || 500;
+    return res.status(status).json({ error: e?.message || 'INTERNAL_ERROR' });
+  }
+}
+
 

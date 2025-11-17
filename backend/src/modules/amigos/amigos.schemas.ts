@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const enviarSolicitudSchema = z.object({
   body: z.object({
-    receptorId: z.string().uuid()
+    receptorId: z.string().min(1)
   })
 });
 
@@ -12,4 +12,9 @@ export const idSolicitudParamsSchema = z.object({
   })
 });
 
+export const amigoIdParamsSchema = z.object({
+  params: z.object({
+    amigoId: z.string().uuid()
+  })
+});
 

@@ -1,4 +1,3 @@
-// screens/Amigos.tsx
 import React, { useState } from 'react';
 import {
     View,
@@ -11,13 +10,14 @@ import {
     TextInput,
     ActivityIndicator,
     Alert,
+    RefreshControl, // 🟢 Importante para recargar
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import Header from '../components/Header';
 import { useAmigos } from '../viewmodels/useAmigos';
 
-// 🔐 Ajustá este import según tu proyecto
+// 🔐 Ajustá este import según tu proyecto (ej. src/contexts/AuthContext)
 import { useAuth } from '../contexts/AuthContext';
 
 const PRIMARY = '#0A4930';
@@ -35,25 +35,49 @@ export default function Amigos({ navigation }: any) {
         pendingLoading,
         acceptPending,
         rejectPending,
+        removeFriend, // 🟢 Función para eliminar
+        refresh,      // 🟢 Función para recargar todo
     } = useAmigos();
 
-    // Usuario logueado (ajustar según tu contexto real)
-    const { user } = useAuth(); // user.id, user.name, user.email, etc.
+    // Usuario logueado
+    const { user } = useAuth();
+    // El formato del QR para que otros lo escaneen (ej: splitty:user:UID)
     const qrValue = user ? `splitty:user:${user.uid}` : '';
 
+    // Estados locales
     const [addFriendVisible, setAddFriendVisible] = useState(false);
     const [myQRVisible, setMyQRVisible] = useState(false);
     const [friendIdToAdd, setFriendIdToAdd] = useState('');
+    const [refreshing, setRefreshing] = useState(false); // Estado para el pull-to-refresh
 
+    // 🟢 Lógica de Refresco (Pull to Refresh)
+    const onRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await refresh();
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
+    // 🟢 Ir a la pantalla del escáner
+    const handleScanQR = () => {
+        setAddFriendVisible(false); // Cerramos el modal actual
+        navigation.navigate('EscanearAmigo'); // Navegamos a la cámara
+    };
+
+    // Lógica para agregar manual (por ID o Email)
     const handleAddFriend = async () => {
         const id = friendIdToAdd.trim();
         if (!id) {
-            Alert.alert('Atención', 'Ingresá el ID del amigo primero.');
+            Alert.alert('Atención', 'Ingresá el ID o correo del amigo primero.');
             return;
         }
 
         try {
-            // Si el input parece un correo, invitar por email (busca y crea solicitud)
+            // Si tiene arroba, asumimos que es email
             if (id.includes('@')) {
                 await inviteByEmail(id);
             } else {
@@ -62,12 +86,13 @@ export default function Amigos({ navigation }: any) {
 
             setFriendIdToAdd('');
             setAddFriendVisible(false);
-            Alert.alert('Listo', 'Invitación enviada correctamente');
+            Alert.alert('Listo', 'Solicitud enviada correctamente');
         } catch (err: any) {
             console.error('Error al invitar/agregar amigo', err);
 
             const msgCode = err?.response?.data?.error || err?.message || String(err);
             let backendMsg = 'No se pudo agregar el amigo. Verificá el dato ingresado.';
+
             if (msgCode === 'USER_NOT_FOUND' || msgCode === 'NOT_FOUND') {
                 backendMsg = 'No se encontró un usuario con ese correo/ID.';
             } else if (msgCode === 'ALREADY_FRIENDS') {
@@ -82,22 +107,64 @@ export default function Amigos({ navigation }: any) {
         }
     };
 
+    // 🟢 Confirmar eliminación de amigo
+    const confirmDeleteFriend = (friend: any) => {
+        Alert.alert(
+            'Eliminar amigo',
+            `¿Estás seguro de eliminar a ${friend.name}?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Eliminar',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await removeFriend(friend.id);
+                        } catch (e) {
+                            Alert.alert('Error', 'No se pudo eliminar al amigo.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     return (
         <View style={styles.container}>
             <Header navigation={navigation} variant="amigos" />
 
-            {loading ? (
+            {/* Estado de carga inicial (solo si no estamos refrescando) */}
+            {loading && !refreshing ? (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color={PRIMARY} />
                 </View>
             ) : error ? (
-                <View style={styles.center}>
+                // Si hay error, permitimos refrescar para reintentar
+                <ScrollView
+                    contentContainerStyle={styles.center}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PRIMARY]} />
+                    }
+                >
                     <Text style={styles.errorText}>{error}</Text>
-                </View>
+                    <TouchableOpacity onPress={onRefresh} style={{ marginTop: 12 }}>
+                         <Text style={{ color: PRIMARY, fontWeight: 'bold' }}>Toca para reintentar</Text>
+                    </TouchableOpacity>
+                </ScrollView>
             ) : (
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    {/* Solicitudes recibidas */}
-                    {pendingLoading ? (
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[PRIMARY]}
+                            tintColor={PRIMARY}
+                        />
+                    }
+                >
+                    {/* SECCIÓN 1: Solicitudes Recibidas */}
+                    {pendingLoading && !refreshing ? (
                         <View style={{ paddingVertical: 12 }}>
                             <ActivityIndicator color={PRIMARY} />
                         </View>
@@ -135,7 +202,7 @@ export default function Amigos({ navigation }: any) {
                         )
                     )}
 
-                    {/* Botón "Mi código QR" */}
+                    {/* SECCIÓN 2: Botones de Acción */}
                     <TouchableOpacity
                         style={styles.primaryButton}
                         onPress={() => setMyQRVisible(true)}
@@ -149,7 +216,6 @@ export default function Amigos({ navigation }: any) {
                         <Text style={styles.primaryButtonText}>Mi código QR</Text>
                     </TouchableOpacity>
 
-                    {/* Botón "Agregar amigo" */}
                     <TouchableOpacity
                         style={styles.secondaryButton}
                         onPress={() => setAddFriendVisible(true)}
@@ -163,7 +229,7 @@ export default function Amigos({ navigation }: any) {
                         <Text style={styles.secondaryButtonText}>Agregar amigo</Text>
                     </TouchableOpacity>
 
-                    {/* Cabecera de lista */}
+                    {/* SECCIÓN 3: Lista de Amigos */}
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Mis amigos</Text>
                         <View style={styles.badge}>
@@ -171,7 +237,6 @@ export default function Amigos({ navigation }: any) {
                         </View>
                     </View>
 
-                    {/* Lista de amigos */}
                     {friends.map((friend: any) => (
                         <View key={friend.id} style={styles.friendCard}>
                             <View style={styles.friendRow}>
@@ -179,7 +244,7 @@ export default function Amigos({ navigation }: any) {
                                     <View style={styles.friendAvatarWrapper}>
                                         <View style={styles.avatarCircleSmall}>
                                             <Text style={styles.avatarInitialSmall}>
-                                                {(friend.name || '?').charAt(0)}
+                                                {(friend.name || '?').charAt(0).toUpperCase()}
                                             </Text>
                                         </View>
                                         {friend.online && <View style={styles.onlineDot} />}
@@ -205,7 +270,8 @@ export default function Amigos({ navigation }: any) {
                                     </View>
                                 </View>
 
-                                <TouchableOpacity>
+                                {/* Botón Eliminar */}
+                                <TouchableOpacity onPress={() => confirmDeleteFriend(friend)} style={{ padding: 8 }}>
                                     <Ionicons name="trash-outline" size={20} color="#A1A8AA" />
                                 </TouchableOpacity>
                             </View>
@@ -249,15 +315,19 @@ export default function Amigos({ navigation }: any) {
                                     />
                                     <TextInput
                                         style={styles.searchInput}
-                                        placeholder="Ingresar correo del amigo..."
+                                        placeholder="Ingresar correo o ID del amigo..."
                                         placeholderTextColor="#A0A7A3"
                                         value={friendIdToAdd}
                                         onChangeText={setFriendIdToAdd}
+                                        autoCapitalize="none"
                                     />
                                 </View>
 
                                 <View style={styles.addFriendButtonsRow}>
-                                    <TouchableOpacity style={styles.scanButton}>
+                                    <TouchableOpacity
+                                        style={styles.scanButton}
+                                        onPress={handleScanQR} // 🟢 CONECTADO AL ESCÁNER
+                                    >
                                         <Ionicons
                                             name="qr-code-outline"
                                             size={18}
@@ -312,9 +382,6 @@ export default function Amigos({ navigation }: any) {
 
                                 <Text style={styles.qrUserName}>
                                     {user?.displayName || user?.email || 'Tu Usuario'}
-                                </Text>
-                                <Text style={styles.qrUserId}>
-                                    {user ? `ID: ${user.uid}` : 'ID no disponible'}
                                 </Text>
 
                                 <Text style={styles.qrHelpText}>

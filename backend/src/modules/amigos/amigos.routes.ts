@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuthUnverified } from '../../middlewares/auth';
 import { validate } from '../../middlewares/validate';
 import * as ctrl from './amigos.controller';
-import { enviarSolicitudSchema, idSolicitudParamsSchema } from './amigos.schemas';
+import { enviarSolicitudSchema, idSolicitudParamsSchema, amigoIdParamsSchema} from './amigos.schemas';
 
 const r = Router();
 
@@ -10,6 +10,7 @@ r.post('/solicitudes', requireAuthUnverified, validate(enviarSolicitudSchema), c
 r.get('/solicitudes/recibidas', requireAuthUnverified, ctrl.listarPendientesRecibidas);
 r.post('/solicitudes/:solicitudId/aceptar', requireAuthUnverified, validate(idSolicitudParamsSchema), ctrl.aceptarSolicitud);
 r.post('/solicitudes/:solicitudId/rechazar', requireAuthUnverified, validate(idSolicitudParamsSchema), ctrl.rechazarSolicitud);
+r.delete('/:amigoId', requireAuthUnverified, validate(amigoIdParamsSchema), ctrl.eliminarAmigo);
 r.get('/', requireAuthUnverified, ctrl.listarAmigos);
 
 export default r;

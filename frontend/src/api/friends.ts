@@ -65,10 +65,16 @@ export async function inviteByEmail(email: string) {
   return sendFriendRequest(user.id);
 }
 
+export async function deleteFriend(amigoId: string) {
+  const res = await api.delete(`/amigos/${encodeURIComponent(amigoId)}`);
+  return res.data;
+}
+
 export default {
   sendFriendRequest,
   getPendingReceived,
   acceptRequest,
   rejectRequest,
-  getFriends,
+  deleteFriend,
+  getFriends
 };

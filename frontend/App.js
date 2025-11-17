@@ -14,6 +14,7 @@ import ConfiguracionGrupo from './src/screens/ConfiguracionGrupo';
 import MainTabs from './src/navigation/MainTabs';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ProfileProvider } from './src/contexts/ProfileContext';
+import EscanearAmigo from './src/screens/EscanearAmigo';
 import { api } from './src/api/client';
 
 const Stack = createNativeStackNavigator();
@@ -146,6 +147,7 @@ function AppNavigator() {
           <Stack.Screen key="InvitarMiembro" name="InvitarMiembro" component={require('./src/screens/InvitarMiembro').default} />
           <Stack.Screen key="AddGasto" name="AddGasto" component={AddGasto} />
           <Stack.Screen key="PantallaPerfil" name="PantallaPerfil" component={require('./src/screens/PantallaPerfil').default} />
+          <Stack.Screen name="EscanearAmigo" component={EscanearAmigo} options={{ headerShown: false }} />
           <Stack.Screen key="ConfiguracionGrupo" name="ConfiguracionGrupo" component={ConfiguracionGrupo} />
         </>
       ) : (

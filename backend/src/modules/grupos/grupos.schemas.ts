@@ -32,3 +32,13 @@ export const addMembersSchema = z.object({
   params: z.object({ grupoId: z.string().uuid() }),
   body: z.object({ memberIds: z.array(z.string().uuid()).min(1) })
 });
+
+export const actualizarGrupoSchema = z.object({
+  params: z.object({
+    grupoId: z.string().uuid()
+  }),
+  body: z.object({
+    nombre: z.string().min(1).max(120).optional(),
+    descripcion: z.string().max(400).optional()
+  })
+});

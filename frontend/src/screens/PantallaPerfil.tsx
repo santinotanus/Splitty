@@ -23,7 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { updateUser, getCurrentUser, checkClaveAvailable } from '../api/client';
 
 export default function PantallaPerfil({ navigation }: any) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { profileImage, setProfileImage, uploadProfileImage, loadProfileImage, loading: profileLoading } = useProfile();
   const insets = useSafeAreaInsets();
   const [nombre, setNombre] = useState('');
@@ -276,6 +276,28 @@ export default function PantallaPerfil({ navigation }: any) {
     }
   };
 
+  const handleLogout = async () => {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Estás seguro de que deseas cerrar sesión?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              console.error('Error al cerrar sesión:', error);
+              Alert.alert('Error', 'No se pudo cerrar sesión');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -370,6 +392,15 @@ export default function PantallaPerfil({ navigation }: any) {
             <Feather name="edit-2" size={18} color="#666" />
           </TouchableOpacity>
         </View>
+
+        {/* Logout Button */}
+        <TouchableOpacity 
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+          <Feather name="log-out" size={20} color="#fff" />
+          <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Edit Name Modal */}
@@ -728,6 +759,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DC2626',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 24,
+    marginBottom: 16,
+    gap: 8,
+  },
+  logoutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

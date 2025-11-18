@@ -6,8 +6,68 @@ import * as Clipboard from 'expo-clipboard';
 import { Linking } from 'react-native';
 import Constants from 'expo-constants';
 import { uploadReceipt, uploadReceiptUrl } from '../api/balances';
+import { useTheme } from '../contexts/ThemeContext';
+
+const getStyles = (colors: any) => StyleSheet.create({
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.background, 
+    padding: 16 
+  },
+  card: { 
+    backgroundColor: colors.modalBackground, 
+    borderRadius: 12, 
+    padding: 16, 
+    borderWidth: 1, 
+    borderColor: colors.borderLight 
+  },
+  title: { 
+    fontSize: 18, 
+    fontWeight: '700', 
+    color: colors.text, 
+    marginBottom: 12 
+  },
+  label: { 
+    color: colors.textSecondary, 
+    fontSize: 12, 
+    marginTop: 8 
+  },
+  value: { 
+    fontSize: 16, 
+    fontWeight: '700', 
+    color: colors.text 
+  },
+  uploadButton: { 
+    marginTop: 12, 
+    backgroundColor: colors.primary, 
+    padding: 12, 
+    borderRadius: 8, 
+    alignItems: 'center' 
+  },
+  mpButton: { 
+    marginTop: 8, 
+    backgroundColor: '#00ADEF', 
+    padding: 12, 
+    borderRadius: 8, 
+    alignItems: 'center' 
+  },
+  uploadedText: {
+    color: colors.textSecondary,
+    marginBottom: 8
+  },
+  buttonText: {
+    color: colors.primaryText,
+    fontWeight: '700'
+  },
+  errorAmount: {
+    color: '#B00020',
+    fontSize: 22
+  }
+});
 
 export default function DebtDetail({ route, navigation }: any) {
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
   const { debt, grupoId } = route.params || {};
   const [uploading, setUploading] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(debt?.comprobanteUrl || null);
@@ -114,7 +174,7 @@ export default function DebtDetail({ route, navigation }: any) {
         <Text style={styles.value}>{debt?.haciaUsuarioClave || '—'}</Text>
 
         <Text style={styles.label}>Importe</Text>
-        <Text style={[styles.value, { color: '#B00020', fontSize: 22 }]}>${Number(debt?.importe || 0).toFixed(2)}</Text>
+        <Text style={[styles.value, styles.errorAmount]}>${Number(debt?.importe || 0).toFixed(2)}</Text>
 
         <Text style={styles.label}>Motivo</Text>
         <Text style={styles.value}>{debt?.gastoDescripcion || 'Pago pendiente'}</Text>
@@ -122,34 +182,34 @@ export default function DebtDetail({ route, navigation }: any) {
         <View style={{ height: 12 }} />
 
         <TouchableOpacity style={styles.mpButton} onPress={copyAndOpenMP}>
-          <Text style={{ color: '#fff', fontWeight: '700' }}>Copiar alias y abrir Mercado Pago</Text>
+          <Text style={styles.buttonText}>Copiar alias y abrir Mercado Pago</Text>
         </TouchableOpacity>
 
         <View style={{ height: 12 }} />
 
         {uploadedUrl ? (
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#666', marginBottom: 8 }}>Comprobante subido</Text>
+            <Text style={styles.uploadedText}>Comprobante subido</Text>
             <Image source={{ uri: uploadedUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} />
           </View>
         ) : localUri ? (
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: '#666', marginBottom: 8 }}>Previsualización</Text>
+            <Text style={styles.uploadedText}>Previsualización</Text>
             <Image source={{ uri: localUri }} style={{ width: 200, height: 200, borderRadius: 8, marginBottom: 8 }} />
             {uploading ? (
-              <ActivityIndicator />
+              <ActivityIndicator color={colors.primary} />
             ) : (
               <TouchableOpacity style={styles.uploadButton} onPress={pickAndUpload}>
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Cargar comprobante</Text>
+                <Text style={styles.buttonText}>Cargar comprobante</Text>
               </TouchableOpacity>
             )}
           </View>
         ) : (
           <TouchableOpacity style={styles.uploadButton} onPress={pickAndUpload} disabled={uploading}>
             {uploading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.primaryText} />
             ) : (
-              <Text style={{ color: '#fff', fontWeight: '700' }}>Cargar comprobante</Text>
+              <Text style={styles.buttonText}>Cargar comprobante</Text>
             )}
           </TouchableOpacity>
         )}
@@ -158,13 +218,3 @@ export default function DebtDetail({ route, navigation }: any) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E6F4F1', padding: 16 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#e6eee9' },
-  title: { fontSize: 18, fontWeight: '700', color: '#033E30', marginBottom: 12 },
-  label: { color: '#666', fontSize: 12, marginTop: 8 },
-  value: { fontSize: 16, fontWeight: '700', color: '#033E30' },
-  uploadButton: { marginTop: 12, backgroundColor: '#033E30', padding: 12, borderRadius: 8, alignItems: 'center' },
-  mpButton: { marginTop: 8, backgroundColor: '#00ADEF', padding: 12, borderRadius: 8, alignItems: 'center' }
-});

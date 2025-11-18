@@ -19,15 +19,231 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { auth } from '../config/firebase';
-import { updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
 import { updateUser, getCurrentUser, checkClaveAvailable } from '../api/client';
+
+const getStyles = (colors: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 16,
+    backgroundColor: colors.modalBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingTop: 24,
+    backgroundColor: colors.background,
+  },
+  photoSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  photoContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: 'hidden',
+    backgroundColor: colors.modalBackground,
+    borderWidth: 3,
+    borderColor: colors.modalBackground,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profilePhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  changePhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 6,
+  },
+  changePhotoText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.modalBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  cardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.emojiCircle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  cardValue: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  editButton: {
+    padding: 8,
+  },
+  loadingContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.modalBackground,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.modalBackground,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 20,
+  },
+  modalInput: {
+    backgroundColor: colors.inputBackground,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    color: colors.text,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: colors.emojiCircle,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  modalButtonSave: {
+    backgroundColor: colors.primary,
+  },
+  modalButtonTextCancel: {
+    color: colors.text,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  modalButtonTextSave: {
+    color: colors.primaryText,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.error,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 24,
+    marginBottom: 16,
+    gap: 8,
+  },
+  logoutButtonText: {
+    color: colors.primaryText,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  imageModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalHeader: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 10,
+  },
+  imageModalCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageModalContent: {
+    width: '90%',
+    height: '70%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullImage: {
+    width: '100%',
+    height: '100%',
+  },
+});
 
 export default function PantallaPerfil({ navigation }: any) {
   const { user, logout } = useAuth();
   const { profileImage, setProfileImage, uploadProfileImage, loadProfileImage, loading: profileLoading } = useProfile();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const styles = getStyles(colors);
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,13 +251,12 @@ export default function PantallaPerfil({ navigation }: any) {
 
   // Modal states
   const [showNameModal, setShowNameModal] = useState(false);
-  const [showEmailModal, setShowEmailModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showClaveModal, setShowClaveModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   // Form states
   const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -117,8 +332,6 @@ export default function PantallaPerfil({ navigation }: any) {
       setLoading(false);
     }
   };
-
-  // ... (mantén todo el código anterior igual hasta handleChangePhoto)
 
   const handleChangePhoto = async () => {
     try {
@@ -205,50 +418,6 @@ export default function PantallaPerfil({ navigation }: any) {
     }
   };
 
-  const handleEditEmail = () => {
-    setNewEmail(email);
-    setShowEmailModal(true);
-  };
-
-  const handleSaveEmail = async () => {
-    if (!newEmail.trim() || !newEmail.includes('@')) {
-      Alert.alert('Error', 'Ingresa un correo electrónico válido');
-      return;
-    }
-    Alert.alert(
-      'Confirmar cambio',
-      'Se enviará un email de verificación a la nueva dirección. ¿Continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Continuar',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await updateEmail(auth.currentUser!, newEmail.trim());
-              setEmail(newEmail.trim());
-              setShowEmailModal(false);
-              Alert.alert(
-                'Email actualizado',
-                'Se ha enviado un email de verificación. Por favor verifica tu nueva dirección de correo.'
-              );
-            } catch (error: any) {
-              console.error('Error updating email:', error);
-              let errorMessage = 'No se pudo actualizar el correo electrónico';
-              if (error.code === 'auth/requires-recent-login') {
-                errorMessage = 'Por seguridad, necesitas iniciar sesión nuevamente';
-              } else if (error.code === 'auth/email-already-in-use') {
-                errorMessage = 'Este correo electrónico ya está en uso';
-              }
-              Alert.alert('Error', errorMessage);
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const handleEditPassword = () => {
     setCurrentPassword('');
@@ -324,20 +493,25 @@ export default function PantallaPerfil({ navigation }: any) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.modalBackground, borderBottomColor: colors.borderLight }]}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Feather name="arrow-left" size={24} color={colors.iconColor} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Perfil</Text>
+        <Text style={styles.headerTitle}>Perfil</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Photo Section */}
         <View style={styles.photoSection}>
-          <View style={[styles.photoContainer, { backgroundColor: colors.modalBackground, borderColor: colors.modalBackground }]}>
+          <TouchableOpacity 
+            style={styles.photoContainer}
+            onPress={() => setShowImageModal(true)}
+            disabled={profileLoading}
+            activeOpacity={0.8}
+          >
             {profileLoading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -348,28 +522,28 @@ export default function PantallaPerfil({ navigation }: any) {
                 style={styles.profilePhoto}
               />
             )}
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={handleChangePhoto}
             style={styles.changePhotoButton}
             disabled={profileLoading}
           >
             <Feather name="edit-2" size={14} color={colors.primary} />
-            <Text style={[styles.changePhotoText, { color: colors.primary }]}>Cambiar foto</Text>
+            <Text style={styles.changePhotoText}>Cambiar foto</Text>
           </TouchableOpacity>
         </View>
 
         {/* Personal Information Section */}
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Información personal</Text>
+        <Text style={styles.sectionTitle}>Información personal</Text>
 
         {/* Full Name Card */}
-        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
-          <View style={[styles.cardIcon, { backgroundColor: colors.emojiCircle }]}>
+        <View style={styles.card}>
+          <View style={styles.cardIcon}>
             <Feather name="user" size={20} color={colors.iconColor} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Nombre completo</Text>
-            <Text style={[styles.cardValue, { color: colors.text }]}>{nombre}</Text>
+            <Text style={styles.cardLabel}>Nombre completo</Text>
+            <Text style={styles.cardValue}>{nombre}</Text>
           </View>
           <TouchableOpacity onPress={handleEditName} style={styles.editButton}>
             <Feather name="edit-2" size={18} color={colors.iconColor} />
@@ -377,24 +551,24 @@ export default function PantallaPerfil({ navigation }: any) {
         </View>
 
         {/* Email Card */}
-        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
-          <View style={[styles.cardIcon, { backgroundColor: colors.emojiCircle }]}>
+        <View style={styles.card}>
+          <View style={styles.cardIcon}>
             <Feather name="mail" size={20} color={colors.iconColor} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Correo electrónico</Text>
-            <Text style={[styles.cardValue, { color: colors.text }]}>{email}</Text>
+            <Text style={styles.cardLabel}>Correo electrónico</Text>
+            <Text style={styles.cardValue}>{email}</Text>
           </View>
         </View>
 
         {/* Alias / CVU Card */}
-        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
-          <View style={[styles.cardIcon, { backgroundColor: colors.emojiCircle }]}>
+        <View style={styles.card}>
+          <View style={styles.cardIcon}>
             <Feather name="hash" size={20} color={colors.iconColor} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Alias / CVU</Text>
-            <Text style={[styles.cardValue, { color: colors.text }]}>{clavePago || 'No establecido'}</Text>
+            <Text style={styles.cardLabel}>Alias / CVU</Text>
+            <Text style={styles.cardValue}>{clavePago || 'No establecido'}</Text>
           </View>
           <TouchableOpacity onPress={handleEditClave} style={styles.editButton}>
             <Feather name="edit-2" size={18} color={colors.iconColor} />
@@ -402,13 +576,13 @@ export default function PantallaPerfil({ navigation }: any) {
         </View>
 
         {/* Password Card */}
-        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
-          <View style={[styles.cardIcon, { backgroundColor: colors.emojiCircle }]}>
+        <View style={styles.card}>
+          <View style={styles.cardIcon}>
             <Feather name="lock" size={20} color={colors.iconColor} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Contraseña</Text>
-            <Text style={[styles.cardValue, { color: colors.text }]}>••••••••</Text>
+            <Text style={styles.cardLabel}>Contraseña</Text>
+            <Text style={styles.cardValue}>••••••••</Text>
           </View>
           <TouchableOpacity onPress={handleEditPassword} style={styles.editButton}>
             <Feather name="edit-2" size={18} color={colors.iconColor} />
@@ -417,11 +591,11 @@ export default function PantallaPerfil({ navigation }: any) {
 
         {/* Logout Button */}
         <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: colors.error }]}
+          style={styles.logoutButton}
           onPress={handleLogout}
         >
           <Feather name="log-out" size={20} color={colors.primaryText} />
-          <Text style={[styles.logoutButtonText, { color: colors.primaryText }]}>Cerrar sesión</Text>
+          <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -443,6 +617,7 @@ export default function PantallaPerfil({ navigation }: any) {
               value={newName}
               onChangeText={setNewName}
               placeholder="Nombre completo"
+              placeholderTextColor={colors.textSecondary}
               autoFocus
             />
             <View style={styles.modalButtons}>
@@ -458,52 +633,7 @@ export default function PantallaPerfil({ navigation }: any) {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.modalButtonTextSave}>Guardar</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Edit Email Modal */}
-      <Modal
-        visible={showEmailModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowEmailModal(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Editar correo electrónico</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={newEmail}
-              onChangeText={setNewEmail}
-              placeholder="Correo electrónico"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoFocus
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => setShowEmailModal(false)}
-              >
-                <Text style={styles.modalButtonTextCancel}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSave]}
-                onPress={handleSaveEmail}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.primaryText} />
                 ) : (
                   <Text style={styles.modalButtonTextSave}>Guardar</Text>
                 )}
@@ -531,6 +661,7 @@ export default function PantallaPerfil({ navigation }: any) {
               value={currentPassword}
               onChangeText={setCurrentPassword}
               placeholder="Contraseña actual"
+              placeholderTextColor={colors.textSecondary}
               secureTextEntry
               autoFocus
             />
@@ -539,6 +670,7 @@ export default function PantallaPerfil({ navigation }: any) {
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder="Nueva contraseña"
+              placeholderTextColor={colors.textSecondary}
               secureTextEntry
             />
             <TextInput
@@ -546,6 +678,7 @@ export default function PantallaPerfil({ navigation }: any) {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Confirmar nueva contraseña"
+              placeholderTextColor={colors.textSecondary}
               secureTextEntry
             />
             <View style={styles.modalButtons}>
@@ -561,7 +694,7 @@ export default function PantallaPerfil({ navigation }: any) {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.primaryText} />
                 ) : (
                   <Text style={styles.modalButtonTextSave}>Guardar</Text>
                 )}
@@ -589,6 +722,7 @@ export default function PantallaPerfil({ navigation }: any) {
               value={newClave}
               onChangeText={setNewClave}
               placeholder="Alias o CVU"
+              placeholderTextColor={colors.textSecondary}
               autoCapitalize="none"
               autoFocus
             />
@@ -605,7 +739,7 @@ export default function PantallaPerfil({ navigation }: any) {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.primaryText} />
                 ) : (
                   <Text style={styles.modalButtonTextSave}>Guardar</Text>
                 )}
@@ -614,189 +748,41 @@ export default function PantallaPerfil({ navigation }: any) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={showImageModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.imageModalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowImageModal(false)}
+        >
+          <View style={styles.imageModalHeader}>
+            <TouchableOpacity 
+              onPress={() => setShowImageModal(false)}
+              style={styles.imageModalCloseButton}
+            >
+              <Feather name="x" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={styles.imageModalContent}
+          >
+            <Image
+              source={{ uri: profileImage }}
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#E6F4F1',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e6eee9',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#033E30',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingTop: 24,
-  },
-  photoSection: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  photoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-    borderWidth: 3,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  profilePhoto: {
-    width: '100%',
-    height: '100%',
-  },
-  changePhotoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 6,
-  },
-  changePhotoText: {
-    color: '#033E30',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#033E30',
-    marginBottom: 12,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e6eee9',
-  },
-  cardIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f6f9f7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  cardContent: {
-    flex: 1,
-  },
-  cardLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-  },
-  cardValue: {
-    fontSize: 15,
-    color: '#033E30',
-    fontWeight: '600',
-  },
-  editButton: {
-    padding: 8,
-  },
-  loadingContainer: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f6f9f7',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#033E30',
-    marginBottom: 20,
-  },
-  modalInput: {
-    backgroundColor: '#f6f9f7',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#e6eee9',
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalButtonCancel: {
-    backgroundColor: '#f6f9f7',
-    borderWidth: 1,
-    borderColor: '#e6eee9',
-  },
-  modalButtonSave: {
-    backgroundColor: '#033E30',
-  },
-  modalButtonTextCancel: {
-    color: '#033E30',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  modalButtonTextSave: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DC2626',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 24,
-    marginBottom: 16,
-    gap: 8,
-  },
-  logoutButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});
-

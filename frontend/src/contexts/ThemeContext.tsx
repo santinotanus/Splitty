@@ -15,6 +15,7 @@ const lightColors = {
   cardBackground: '#F2F7F4',
   modalBackground: '#FFFFFF',
   headerBackground: '#E6F4F1',
+  inputBackground: '#f6f9f7',
   
   // Text
   text: '#182321',
@@ -55,6 +56,7 @@ const darkColors = {
   cardBackground: '#1A2420',
   modalBackground: '#1A2420',
   headerBackground: '#0F1511',
+  inputBackground: '#0F1511',
   
   // Text
   text: '#E8F0ED',

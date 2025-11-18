@@ -21,6 +21,7 @@ import { api } from './src/api/client';
 const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
+  // 🔥 FIX 1: Tu AuthContext usa 'isLoading', no 'loading'
   const { user, isLoading } = useAuth();
 
   useEffect(() => {
@@ -129,6 +130,7 @@ function AppNavigator() {
     }
   };
 
+  // 🔥 FIX 2: Usar 'isLoading' (el nombre correcto)
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -165,13 +167,14 @@ function AppNavigator() {
 
 const App = () => (
   <ThemeProvider>
-    <AuthProvider>
-      <ProfileProvider>
+    {/* 🔥 FIX 3: Cambiado el orden. ProfileProvider debe envolver a AuthProvider */}
+    <ProfileProvider>
+      <AuthProvider>
         <NavigationContainer>
           <AppNavigator />
         </NavigationContainer>
-      </ProfileProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ProfileProvider>
   </ThemeProvider>
 );
 

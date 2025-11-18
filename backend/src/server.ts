@@ -19,17 +19,14 @@ function getLocalIP(): string {
   return 'localhost';
 }
 
-const localIP = "192.168.1.34"; //HARDCODEADO PARA IP ADRIEL!!!
 
 app.listen(port, '0.0.0.0', () => {
   console.log('================================');
   console.log('🚀 Server running on:');
   console.log(`   Local:    http://localhost:${port}`);
-  console.log(`   Network:  http://${localIP}:${port}`);
   console.log('================================');
   console.log('📋 Endpoints disponibles:');
   console.log('   GET  /health');
   console.log('   POST /auth/sync-user');
   console.log('================================');
-  console.log(`💡 Usa esta IP en tu app móvil: http://${localIP}:${port}`);
 });

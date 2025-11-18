@@ -1,7 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+// 🔥 1. Cambiamos 'getAuth' por 'initializeAuth' y 'getReactNativePersistence'
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 import { getFirestore } from 'firebase/firestore';
+// 🔥 2. Importamos AsyncStorage (ya lo tenés instalado)
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
@@ -16,21 +18,15 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Configurar Auth
-// Nota: en este proyecto evitamos importar 'firebase/auth/react-native'
-// directamente (no está presente en todas las instalaciones). Usamos
-// `getAuth(app)` que funciona en la mayoría de entornos React Native.
-// Si necesitás persistencia con AsyncStorage, podemos reintroducirla
-// cuando la dependencia esté presente o migrar a `@react-native-firebase`.
-const auth = getAuth(app);
+// 🔥 3. Configurar Auth con persistencia
+// Esto le dice a Firebase que guarde el token en el almacenamiento
+// del teléfono para que la sesión no se cierre.
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
 
 // Configurar Firestore
 const db = getFirestore(app);
-// Nota: en versiones recientes del SDK modular la opción
-// `experimentalForceLongPolling` ya no se exporta directamente.
-// Si se necesita forzar long-polling en React Native, puede aplicarse
-// mediante un cast a `any` o usando `initializeFirestore` con settings.
-// Por ahora dejamos la configuración por defecto.
 
 // Configurar Storage
 const storage = getStorage(app);

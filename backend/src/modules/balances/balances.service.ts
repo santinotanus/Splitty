@@ -3,6 +3,9 @@ import * as commonRepo from '../../repositories/common.repo';
 // cloudinary types may not be present in dev environment; ignore TypeScript module resolution here
 // @ts-ignore
 import { v2 as cloudinary } from 'cloudinary';
+import { validarComprobantePorOcr } from '../../utils/receiptValidator';
+import { runOcrOnImage, saveBase64ToTempFile } from '../../utils/receiptValidator';
+import fs from 'fs/promises';
 
 // Configure Cloudinary using environment variables (see backend/.env)
 cloudinary.config({
@@ -181,6 +184,40 @@ export async function subirComprobante({
     (err as any).status = 403;
     throw err;
   }
+  // validacion con OCR 
+
+  const safeNameOCR = (filename || 'receipt.jpg').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const extOCR = (safeNameOCR.split('.').pop() || '').toLowerCase();
+  const allowedOCR = ['jpg', 'jpeg', 'png'];
+  if (!allowedOCR.includes(extOCR)) {
+    const err = new Error('Debes subir un archivo de imagen válido');
+    (err as any).status = 400;
+    throw err;
+  }
+
+  let tempPath: string | null = null;
+  try {
+    if (!data) {
+      throw new Error('No se proporcionó datos de imagen');
+    }
+    tempPath = await saveBase64ToTempFile(data, extOCR);
+
+    const ocrText = await runOcrOnImage(tempPath);
+    const resultado = validarComprobantePorOcr(ocrText);
+    console.log('--- RESULTADO VALIDACIÓN OCR ---', resultado);
+
+    if (!resultado.valido) {
+      const err = new Error(resultado.razon || 'Comprobante inválido');
+      (err as any).status = 400;
+      throw err;
+    }
+  } finally {
+    // limpiar archivo temporal
+    if (tempPath) {
+      try { await fs.unlink(tempPath); } catch {}
+    }
+  }
+
 
   // ===== CLOUDINARY UPLOAD =====
 

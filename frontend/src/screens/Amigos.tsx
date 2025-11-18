@@ -10,7 +10,8 @@ import {
     TextInput,
     ActivityIndicator,
     Alert,
-    RefreshControl, // 🟢 Importante para recargar
+    RefreshControl, // Importante para recargar
+    Image, // 🟢 Importamos Image
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -23,7 +24,7 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const Amigos = ({ navigation }: any) => {
     const { colors } = useTheme();
-    
+
     const {
         friends,
         loading,
@@ -172,6 +173,22 @@ const Amigos = ({ navigation }: any) => {
                                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Solicitudes recibidas</Text>
                                 {pendingRequests.map((s: any) => (
                                     <View key={s.id} style={[styles.requestCard, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+                                        {/* 🟢 LÓGICA DE FOTO PARA SOLICITUDES */}
+                                        <View style={styles.friendAvatarWrapper}>
+                                            {s.solicitanteFotoUrl ? (
+                                                <Image
+                                                    source={{ uri: s.solicitanteFotoUrl }}
+                                                    style={[styles.avatarImage, { backgroundColor: colors.borderLight }]}
+                                                />
+                                            ) : (
+                                                <View style={[styles.avatarCircleSmall, { backgroundColor: colors.emojiCircle }]}>
+                                                    <Text style={[styles.avatarInitialSmall, { color: colors.text }]}>
+                                                        {(s.solicitanteNombre || '?').charAt(0).toUpperCase()}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+
                                         <View style={{ flex: 1 }}>
                                             <Text style={{ fontWeight: '600', color: colors.text }}>
                                                 {s.solicitanteNombre || 'Usuario'}
@@ -240,11 +257,19 @@ const Amigos = ({ navigation }: any) => {
                             <View style={styles.friendRow}>
                                 <View style={styles.friendLeft}>
                                     <View style={styles.friendAvatarWrapper}>
-                                        <View style={[styles.avatarCircleSmall, { backgroundColor: colors.emojiCircle }]}>
-                                            <Text style={[styles.avatarInitialSmall, { color: colors.text }]}>
-                                                {(friend.name || '?').charAt(0).toUpperCase()}
-                                            </Text>
-                                        </View>
+                                        {/* 🟢 LÓGICA CONDICIONAL PARA FOTO O INICIAL */}
+                                        {friend.foto_url ? (
+                                            <Image
+                                                source={{ uri: friend.foto_url }}
+                                                style={[styles.avatarImage, { backgroundColor: colors.borderLight }]}
+                                            />
+                                        ) : (
+                                            <View style={[styles.avatarCircleSmall, { backgroundColor: colors.emojiCircle }]}>
+                                                <Text style={[styles.avatarInitialSmall, { color: colors.text }]}>
+                                                    {(friend.name || '?').charAt(0).toUpperCase()}
+                                                </Text>
+                                            </View>
+                                        )}
                                         {friend.online && <View style={styles.onlineDot} />}
                                     </View>
 
@@ -489,6 +514,12 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    // 🟢 NUEVO ESTILO PARA LA IMAGEN
+    avatarImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
     },
     avatarInitialSmall: {
         fontWeight: '700',

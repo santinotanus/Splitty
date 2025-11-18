@@ -31,10 +31,53 @@ export async function updateMe(req: Request, res: Response) {
     return res.status(401).json({ error: 'UNAUTHORIZED' });
   }
 
+  // --- 👇 NUEVOS LOGS DE DIAGNÓSTICO ---
+  console.log('--- 🛑 INICIO UPDATE ME CONTROLLER 🛑 ---');
+  console.log('HEADERS (Content-Type):', req.headers['content-type']);
+  console.log('BODY KEYS:', Object.keys(req.body));
+  const bodyString = JSON.stringify(req.body);
+  if (bodyString.length > 500) {
+    console.log(`BODY (GRANDE): ${bodyString.length} bytes`);
+  } else {
+    console.log('BODY (COMPLETO):', bodyString);
+  }
+  console.log('CONTROLLER: req.body.foto_data existe?', !!req.body.foto_data);
+  console.log('CONTROLLER: req.body.foto_data length:', req.body.foto_data?.length || 0);
+  // --- 👆 FIN DE LOS LOGS ---
+
   try {
     const { nombre, clave_pago, foto_url, foto_data } = req.body;
-    await svc.updateMe({ firebaseUid, nombre, clave_pago, foto_url, foto_data });
-    res.json({ ok: true });
+
+    // Logs originales (algunos son redundantes con los nuevos, pero los dejo por si acaso)
+    console.log('📝 updateMe controller - firebaseUid:', firebaseUid);
+    console.log('📦 updateMe controller - has nombre:', !!nombre);
+    console.log('📦 updateMe controller - has clave_pago:', !!clave_pago);
+    console.log('📦 updateMe controller - has foto_url:', !!foto_url);
+
+    if (foto_data) {
+      console.log('📦 updateMe controller - foto_data preview:', foto_data.substring(0, 50) + '...');
+    } else {
+      console.log('📦 updateMe controller - NO HAY foto_data en el body desestructurado');
+    }
+
+    // 🔥 FIX: Capturar el usuario actualizado que devuelve el service
+    const updatedUser = await svc.updateMe({
+      firebaseUid,
+      nombre,
+      clave_pago,
+      foto_url,
+      foto_data
+    });
+
+    console.log('✅ updateMe controller - updatedUser:', {
+      id: updatedUser?.id,
+      nombre: updatedUser?.nombre,
+      foto_url: updatedUser?.foto_url
+    });
+
+    // 🔥 FIX: Devolver el usuario completo en lugar de solo {ok: true}
+    res.json(updatedUser);
+
   } catch (err) {
     console.error('Error en updateMe:', err);
     // Detectar error de constraint UNIQUE sobre clave_pago

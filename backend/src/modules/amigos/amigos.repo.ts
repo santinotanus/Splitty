@@ -41,7 +41,9 @@ export async function listPendingReceived(receptorId: string) {
       's.fecha_creacion as fecha',
       'u.id as solicitanteId',
       'u.nombre as solicitanteNombre',
-      'u.correo as solicitanteCorreo'
+      'u.correo as solicitanteCorreo',
+      // 🔥 FIX: Agregar foto del solicitante
+      'u.foto_url as solicitanteFotoUrl'
     )
     .orderBy('s.fecha_creacion', 'desc');
 }
@@ -92,12 +94,14 @@ export async function listFriends(userId: string) {
   const aSide = db('dbo.amistades as a')
     .join('dbo.usuarios as u', 'u.id', 'a.usuario_b')
     .where('a.usuario_a', userId)
-    .select('u.id', 'u.firebase_uid', 'u.nombre', 'u.correo');
+    // 🔥 FIX: Agregar foto_url al select
+    .select('u.id', 'u.firebase_uid', 'u.nombre', 'u.correo', 'u.foto_url');
 
   const bSide = db('dbo.amistades as a')
     .join('dbo.usuarios as u', 'u.id', 'a.usuario_a')
     .where('a.usuario_b', userId)
-    .select('u.id', 'u.firebase_uid', 'u.nombre', 'u.correo');
+    // 🔥 FIX: Agregar foto_url al select
+    .select('u.id', 'u.firebase_uid', 'u.nombre', 'u.correo', 'u.foto_url');
 
   return aSide.unionAll([bSide]).orderBy('nombre');
 }
@@ -110,4 +114,3 @@ export async function deleteFriendship(userIdA: string, userIdB: string) {
     })
     .delete();
 }
-

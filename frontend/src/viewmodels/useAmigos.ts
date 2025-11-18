@@ -6,6 +6,7 @@ import * as groupsApi from '../api/groups';
 export interface Friend {
     id: string;
     name: string;            // lo que usa el front
+    foto_url?: string | null; // 🔥 FIX: Faltaba la foto en la interfaz
     groupsInCommon: number;
     groupsNames?: string[];
     online: boolean;
@@ -15,6 +16,7 @@ function mapRawToFriend(item: any): Friend {
     return {
         id: String(item.id ?? item.idAmigo ?? item.friendId ?? ''),
         name: item.name || item.nombre || 'Sin nombre',
+        foto_url: item.foto_url || null, // 🔥 FIX: Faltaba copiar la foto
         groupsInCommon: item.groupsInCommon ?? item.gruposEnComun ?? 0,
         online: Boolean(item.online ?? item.estaOnline ?? false),
     };
@@ -32,8 +34,8 @@ export function useAmigos() {
             setLoading(true);
             setError(null);
 
-            const raw = await getFriends();
-            const mapped: Friend[] = (raw as any[]).map(mapRawToFriend);
+            const raw = await getFriends(); // Esto ya viene mapeado de api/friends.ts
+            const mapped: Friend[] = (raw as any[]).map(mapRawToFriend); // Este es el mapeo final
 
             // Compute groups in common by fetching my groups and their members
             try {
@@ -90,12 +92,14 @@ export function useAmigos() {
     const fetchPending = useCallback(async () => {
         try {
             setPendingLoading(true);
-            const rows = await getPendingReceived();
+            const rows = await getPendingReceived(); // api/friends.ts ya mapea esto
                 const normalized = (rows || []).map((r: any) => ({
                     id: r.solicitudId || r.solicitud_id || r.id,
                     solicitanteId: r.solicitanteId || r.solicitante_id || r.fromId,
                     solicitanteNombre: r.solicitanteNombre || r.solicitante_nombre || r.solicitanteNombre || r.solicitante_nombre || r.nombre || r.fromName,
                     solicitanteCorreo: r.solicitanteCorreo || r.solicitante_correo || r.correo || r.fromEmail,
+                    // 🔥 FIX: Faltaba copiar la foto de la solicitud
+                    solicitanteFotoUrl: r.solicitanteFotoUrl || null,
                     fecha: r.fecha || r.createdAt || r.created_at,
                 }));
                 setPendingRequests(normalized);

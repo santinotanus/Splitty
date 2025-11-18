@@ -3,224 +3,279 @@ import React, {
   useContext,
   useState,
   useEffect,
-  ReactNode,
-} from "react";
+  type ReactNode,
+  useMemo,
+  useCallback,
+} from 'react';
+import { auth } from '../config/firebase';
 import {
-  User,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendEmailVerification,
   signOut,
   onAuthStateChanged,
-  sendPasswordResetEmail
-} from 'firebase/auth';
-import { auth } from '../config/firebase';
-import { setAuthToken, syncUserWithBackend } from "../api/client";
+  type User,
+  sendEmailVerification,
+  deleteUser,
+} from 'firebase/a'uth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as client from '../api/client'; // Importamos el cliente de API
+import { useProfile } from './ProfileContext'; // Importamos el ProfileContext
 
-type AuthContextType = {
+// Definición del tipo de contexto
+interface AuthContextType {
   user: User | null;
-  token: string | null;
-  isLoading: boolean;
-  register: (email: string, password: string, nombre: string, fechaNacimiento: string, clavePago?: string, foto?: string | null) => Promise<User>;
-  login: (email: string, password: string) => Promise<void>;
+  loading: boolean;
+  error: string | null;
+  isVerifying: boolean;
+  isSyncing: boolean;
+
+  // Esta es la firma de función que usa tu CrearCuenta.tsx
+  register: (
+    email: string,
+    pass: string,
+    nombre: string,
+    fechaNacimiento: string, // YYYY-MM-DD
+    clavePago: string,
+    fotoBase64: string | null
+  ) => Promise<void>;
+
+  signIn: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  resendVerification: () => Promise<void>;
-};
+  resendVerificationEmail: () => Promise<void>;
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const USER_VERIFIED_KEY = '@user_verified';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Carga inicial
+  const [error, setError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  // 🔥 Listener de cambios de autenticación
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('🔄 Auth state changed:', firebaseUser?.email);
+  // Esto causaba el error 'useProfile must be used within a ProfileProvider'
+  // Asegúrate de que en App.js, <ProfileProvider> envuelva a <AuthProvider>
+  const { setProfileImage } = useProfile();
 
-      // Solo establecer el usuario si su email está verificado
-      if (firebaseUser && firebaseUser.emailVerified) {
-        console.log('✅ Usuario con email verificado');
+  const setVerifiedFlag = async (val: boolean) => {
+    try {
+      await AsyncStorage.setItem(USER_VERIFIED_KEY, JSON.stringify(val));
+    } catch (e) {
+      console.error('Failed to save verified flag', e);
+    }
+  };
+
+  const checkVerifiedFlag = async () => {
+    try {
+      const val = await AsyncStorage.getItem(USER_VERIFIED_KEY);
+      return val ? JSON.parse(val) : false;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const handleAuthChange = useCallback(async (firebaseUser: User | null) => {
+    setLoading(true);
+    setError(null);
+    if (firebaseUser) {
+      await firebaseUser.reload(); // Refrescar estado de Firebase
+
+      if (firebaseUser.emailVerified) {
         setUser(firebaseUser);
-
+        setIsVerifying(false);
+        await setVerifiedFlag(true);
         try {
-          const idToken = await firebaseUser.getIdToken();
-          console.log('🔑 Token obtenido, longitud:', idToken.length);
-          setToken(idToken);
-          setAuthToken(idToken);
-          // Verificar que el usuario exista en el backend; si no, cerrar sesión local
-          try {
-            // importar la función getCurrentUser de forma dinámica para evitar dependencias circulares
-            const { getCurrentUser } = await import('../api/client');
-            await getCurrentUser();
-          } catch (err: any) {
-            // Si el backend responde 404 o devuelve USER_NOT_FOUND, cerramos la sesión local
-            const message = err?.response?.data || err?.message || String(err);
-            console.warn('⚠️ Verificación backend fallo:', message);
-            // Condiciones típicas: 404 con { error: 'USER_NOT_FOUND' }
-            const isUserNotFound = err?.response?.status === 404 || (err?.response?.data?.error === 'USER_NOT_FOUND');
-            if (isUserNotFound) {
-              console.log('🚪 Usuario no encontrado en backend — cerrando sesión local');
-              try {
-                await signOut(auth);
-              } catch (e) {
-                console.warn('❌ Error al cerrar sesión local:', e);
-              }
-              setUser(null);
-              setToken(null);
-              setAuthToken(undefined);
-            }
-          }
-        } catch (error) {
-          console.error('❌ Error obteniendo token:', error);
+          const token = await firebaseUser.getIdToken();
+          client.setAuthToken(token);
+        } catch (e) {
+          console.error('No se pudo obtener el token para la API', e);
         }
       } else {
-        console.log('❌ Usuario sin verificar o no autenticado');
-        setUser(null);
-        setToken(null);
-        setAuthToken(undefined);
+        const alreadyMarked = await checkVerifiedFlag();
+        if (alreadyMarked) {
+          console.warn('Usuario sigue sin verificar, pero se marcó localmente.');
+          setUser(firebaseUser);
+          setIsVerifying(false);
+        } else {
+          setUser(null);
+          setIsVerifying(true);
+        }
       }
-
-      setIsLoading(false);
-    });
-
-    return unsubscribe;
+    } else {
+      setUser(null);
+      setIsVerifying(false);
+      client.setAuthToken(undefined);
+    }
+    setLoading(false);
   }, []);
 
-  // 📝 REGISTRO
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, handleAuthChange);
+    return unsubscribe;
+  }, [handleAuthChange]);
+
+
+  // Esta es la función register() que usa tu CrearCuenta.tsx
   const register = async (
     email: string,
-    password: string,
+    pass: string,
     nombre: string,
-    fechaNacimiento: string,
-    clavePago?: string,
-    foto?: string | null
-  ): Promise<User> => {
-    let userCredential;
+    fechaNacimiento: string, // YYYY-MM-DD
+    clavePago: string,
+    fotoBase64: string | null
+  ) => {
+    setLoading(true);
+    setIsSyncing(true);
+    setError(null);
+    let createdFirebaseUser: User | null = null;
 
     try {
-      console.log('📝 Iniciando registro...');
-      console.log('Email:', email);
-      console.log('Nombre:', nombre);
-      console.log('Fecha:', fechaNacimiento);
+      // 1. Crear usuario en Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      createdFirebaseUser = userCredential.user;
+      console.log('✅ Usuario creado en Firebase');
 
-      // 1. Crear usuario en Firebase
-      console.log('1️⃣ Creando usuario en Firebase...');
-      userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log('✅ Usuario creado en Firebase:', userCredential.user.uid);
+      // 2. Sincronizar con el backend (Base de Datos SQL)
+      try {
+        const token = await createdFirebaseUser.getIdToken();
+        client.setAuthToken(token);
+        console.log('🔄 Sincronizando con backend...');
 
-      // 2. Obtener token
-      console.log('2️⃣ Obteniendo token...');
-      const idToken = await userCredential.user.getIdToken();
-      console.log('✅ Token obtenido');
-      setAuthToken(idToken);
+        // Llamamos al cliente de la API
+        const backendUser = await client.syncUserWithBackend({
+          nombre: nombre,
+          fechaNacimiento: fechaNacimiento,
 
-      // 3. Sincronizar con backend
-      console.log('3️⃣ Sincronizando con backend...');
-      // foto may be either a base64 data string or an already-hosted URL
-      const payload: any = {
-        nombre,
-        fechaNacimiento,
-        clave_pago: clavePago ?? null
-      };
+          // 🔥 FIX: Aquí estaba el error. Faltaba pasar la clave_pago.
+          clave_pago: clavePago,
 
-      if (foto) {
-        if (typeof foto === 'string' && foto.startsWith('http')) {
-          payload.foto_url = foto;
-        } else {
-          payload.foto_data = foto;
+          foto_data: fotoBase64,
+        });
+
+        console.log('✅ Sincronización con backend exitosa');
+
+        // Actualizar foto en ProfileContext si el backend la devolvió
+        if (backendUser?.foto_url) {
+          setProfileImage(backendUser.foto_url);
         }
+
+      } catch (syncError: any) {
+        console.error('❌ Error en syncUserWithBackend:', syncError.message);
+        // Si falla el sync, borrar el usuario de Firebase para reintentar
+        if (createdFirebaseUser) {
+          console.log('🗑️ Eliminando usuario de Firebase por fallo en sincronización...');
+          await deleteUser(createdFirebaseUser);
+          console.log('✅ Usuario eliminado de Firebase');
+        }
+        throw syncError; // Lanzar el error para que la UI lo atrape
       }
 
-      await syncUserWithBackend(payload);
-      console.log('✅ Sincronización exitosa');
+      // 3. Enviar email de verificación
+      try {
+        await sendEmailVerification(createdFirebaseUser);
+        console.log('✉️ Email de verificación enviado');
+      } catch (e) {
+        console.warn('⚠️ No se pudo enviar el email de verificación', e);
+      }
 
-      // 4. Enviar email de verificación
-      console.log('4️⃣ Enviando email de verificación...');
-      await sendEmailVerification(userCredential.user);
-      console.log('✅ Email de verificación enviado');
-
-      // 5. 🔥 CERRAR SESIÓN INMEDIATAMENTE
-      console.log('5️⃣ Cerrando sesión hasta que verifique el email...');
-      await signOut(auth);
-      console.log('✅ Sesión cerrada');
-
-      return userCredential.user;
+      await setVerifiedFlag(true);
+      setUser(createdFirebaseUser);
+      setIsVerifying(true); // Lo mandamos a la pantalla de "Verifica tu email"
 
     } catch (error: any) {
-      console.error('❌ Error en registro:', error);
-
-      // Si el usuario fue creado en Firebase pero falló la sincronización
-      if (userCredential && userCredential.user) {
-        try {
-          console.log('🗑️ Eliminando usuario de Firebase por fallo en sincronización...');
-          await userCredential.user.delete();
-          console.log('✅ Usuario eliminado de Firebase');
-        } catch (deleteError) {
-          console.error('❌ No se pudo eliminar el usuario de Firebase:', deleteError);
-        }
+      console.error('❌ Error al crear cuenta:', error);
+      let friendlyError = 'No se pudo crear la cuenta.';
+      if (error.code === 'auth/email-already-in-use') {
+        friendlyError = 'Este correo electrónico ya está en uso.';
+      } else if (error.code === 'auth/weak-password') {
+        friendlyError = 'La contraseña es muy débil (mínimo 6 caracteres).';
+      } else if (error.message) {
+        friendlyError = error.message;
       }
-
-      throw error;
+      setError(friendlyError);
+      throw new Error(friendlyError);
+    } finally {
+      setLoading(false);
+      setIsSyncing(false);
     }
   };
 
-  // 🔐 LOGIN
-  const login = async (email: string, password: string) => {
-    console.log('🔐 Iniciando login...');
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-    // 🔥 Verificar que el email esté verificado
-    if (!userCredential.user.emailVerified) {
-      console.log('❌ Email no verificado');
-      await signOut(auth); // Cerrar sesión inmediatamente
-      throw new Error('EMAIL_NOT_VERIFIED');
+  const signIn = async (email: string, password: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      return userCredential.user;
+    } catch (error: any) {
+      let friendlyError = 'Email o contraseña incorrectos.';
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        friendlyError = 'Email o contraseña incorrectos.';
+      } else if (error.code === 'auth/too-many-requests') {
+        friendlyError = 'Demasiados intentos. Intenta más tarde.';
+      }
+      setError(friendlyError);
+      throw new Error(friendlyError);
+    } finally {
+      setLoading(false);
     }
-
-    console.log('✅ Login exitoso con email verificado');
   };
 
-  // 🚪 LOGOUT
   const logout = async () => {
-    console.log('🚪 Cerrando sesión...');
-    await signOut(auth);
+    setLoading(true);
+    try {
+      await signOut(auth);
+      await AsyncStorage.clear();
+      client.setAuthToken(undefined);
+      setUser(null);
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 🔄 REENVIAR VERIFICACIÓN
-  const resendVerification = async () => {
-    if (!user) throw new Error('NO_USER');
-    await sendEmailVerification(user);
+  const resendVerificationEmail = async () => {
+    if (auth.currentUser) {
+      try {
+        await sendEmailVerification(auth.currentUser);
+        console.log('✉️ Email de verificación reenviado');
+      } catch (e) {
+        console.error('No se pudo reenviar email', e);
+        throw e;
+      }
+    } else {
+      throw new Error('No hay usuario logueado');
+    }
   };
 
-  // 🔑 RESETEAR CONTRASEÑA
-  const resetPassword = async (email: string) => {
-    await sendPasswordResetEmail(auth, email);
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isLoading,
-        register,
-        login,
-        logout,
-        resetPassword,
-        resendVerification
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      user,
+      loading,
+      error,
+      isVerifying,
+      isSyncing,
+      register, // Exponemos la función 'register'
+      signIn,
+      logout,
+      resendVerificationEmail,
+    }),
+    [user, loading, error, isVerifying, isSyncing]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
-
-export default AuthContext;

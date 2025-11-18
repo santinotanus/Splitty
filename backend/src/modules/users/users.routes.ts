@@ -10,7 +10,11 @@ const r = Router();
 r.get('/clave-available', ctrl.checkClaveAvailable);
 
 r.get('/me', requireAuth, ctrl.getMe);
-r.put('/me', requireAuth, validate(updateMeSchema), ctrl.updateMe);
+
+// Esto soluciona el problema del body vacío al subir imágenes grandes,
+// ya que POST es más robusto para esto que PUT.
+r.post('/me', requireAuth, validate(updateMeSchema), ctrl.updateMe);
+
 // Buscar usuario por email (p. ej. para invitar/agregar amigos)
 // Ejemplo: GET /users/search?email=correo@dominio.com
 r.get('/search', requireAuth, ctrl.findByEmail);

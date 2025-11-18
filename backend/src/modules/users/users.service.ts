@@ -13,18 +13,24 @@ export function getMe({ firebaseUid }: { firebaseUid: string }) {
   return repo.findUserByFirebaseUid(firebaseUid);
 }
 
-export async function updateMe({ firebaseUid, nombre, clave_pago, foto_url, foto_data }: { firebaseUid: string; nombre?: string; clave_pago?: string | null; foto_url?: string | null; foto_data?: string | null }) {
+export async function updateMe({
+  firebaseUid,
+  nombre,
+  clave_pago,
+  foto_url,
+  foto_data
+}: {
+  firebaseUid: string;
+  nombre?: string;
+  clave_pago?: string | null;
+  foto_url?: string | null;
+  foto_data?: string | null
+}) {
   let finalFotoUrl = foto_url ?? null;
 
   console.log('🔑 updateMe called with firebaseUid:', firebaseUid);
-  try {
-    const existing = await repo.findUserByFirebaseUid(firebaseUid);
-    console.log('🔎 existing user before update:', { id: existing?.id, firebase_uid: existing?.firebase_uid, foto_url: existing?.foto_url });
-  } catch (e) {
-    console.warn('⚠️ Could not fetch existing user before update:', e?.message || e);
-  }
 
-  // If client sent foto_data (base64), perform server-side upload to Cloudinary
+  // Si viene foto_data (base64), subir a Cloudinary
   if (!finalFotoUrl && foto_data && typeof foto_data === 'string' && foto_data.length > 20) {
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
       const err = new Error('CLOUDINARY_NOT_CONFIGURED');
@@ -65,22 +71,30 @@ export async function updateMe({ firebaseUid, nombre, clave_pago, foto_url, foto
   }
 
   const updatePayload = { nombre, clave_pago, foto_url: finalFotoUrl };
-  console.log('📝 updateMe payload:', updatePayload);
-  const rows = await repo.updateUser(firebaseUid, updatePayload);
-  console.log('📝 updateMe rows affected:', rows);
+  console.log('📝 updateMe service - payload:', updatePayload);
+  console.log('📝 updateMe service - foto_url in payload:', finalFotoUrl);
 
-  try {
-    const after = await repo.findUserByFirebaseUid(firebaseUid);
-    console.log('✅ user after update:', { id: after?.id, firebase_uid: after?.firebase_uid, foto_url: after?.foto_url });
-  } catch (e) {
-    console.warn('⚠️ Could not fetch user after update:', e?.message || e);
+  await repo.updateUser(firebaseUid, updatePayload);
+  console.log('✅ updateMe service - DB update completed');
+
+  // 🔥 FIX: Devolver el usuario actualizado con la nueva URL
+  const updatedUser = await repo.findUserByFirebaseUid(firebaseUid);
+  console.log('📤 updateMe service - returning user:', {
+    id: updatedUser?.id,
+    nombre: updatedUser?.nombre,
+    foto_url: updatedUser?.foto_url
+  });
+
+  if (!updatedUser) {
+    const err = new Error('USER_NOT_FOUND_AFTER_UPDATE');
+    (err as any).status = 500;
+    throw err;
   }
 
-  return rows;
+  return updatedUser;
 }
 
 export async function findByEmail({ email }: { email: string }) {
-  // Normalizar email
   const correo = (email || '').trim().toLowerCase();
   if (!correo) return null;
   return repo.findUserByEmail(correo);

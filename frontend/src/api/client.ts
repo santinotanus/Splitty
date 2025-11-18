@@ -55,12 +55,20 @@ export const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     console.log(`📤 ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+    // Loguear el content-type que se está enviando
+    console.log(`📤 Content-Type: ${config.headers['Content-Type']}`);
     const authHeader = config.headers.Authorization;
     if (authHeader && typeof authHeader === 'string') {
       console.log('🔑 Con token:', authHeader.substring(0, 50) + '...');
     }
     if (config.data) {
-      console.log('📦 Data:', JSON.stringify(config.data));
+      // No loguear el body completo si es muy grande
+      const dataString = JSON.stringify(config.data);
+      if (dataString.length > 500) {
+        console.log(`📦 Data (grande): ${dataString.length} bytes. Keys: ${Object.keys(config.data)}`);
+      } else {
+        console.log('📦 Data:', dataString);
+      }
     }
     return config;
   },
@@ -164,7 +172,14 @@ export const getCurrentUser = async () => {
 
 // Actualizar datos del usuario autenticado
 export const updateUser = async (updateData: { nombre?: string; clave_pago?: string | null; foto_url?: string | null; foto_data?: string | null }) => {
-  const response = await api.put("/users/me", updateData);
+  // 🔥 FIX: Cambiar de PUT a POST.
+  // POST es más robusto para enviar bodies grandes y puede resolver
+  // el problema donde express.json() no está parseando el body de PUT.
+  const response = await api.post("/users/me", updateData, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
   return response.data;
 };
 

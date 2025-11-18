@@ -16,7 +16,20 @@ export async function sendFriendRequest(receptorId: string) {
  */
 export async function getPendingReceived() {
   const res = await api.get('/amigos/solicitudes/recibidas');
-  return res.data;
+
+  // 🔥 FIX: Mapear los datos del backend a los que espera la UI
+  // Asegurándonos de copiar la foto del solicitante
+  if (Array.isArray(res.data)) {
+    return res.data.map((s: any) => ({
+      id: s.solicitudId,
+      fecha: s.fecha,
+      solicitanteId: s.solicitanteId,
+      solicitanteNombre: s.solicitanteNombre,
+      solicitanteCorreo: s.solicitanteCorreo,
+      solicitanteFotoUrl: s.solicitanteFotoUrl
+    }));
+  }
+  return [];
 }
 
 /**
@@ -43,7 +56,23 @@ export async function rejectRequest(solicitudId: string) {
  */
 export async function getFriends() {
   const res = await api.get('/amigos');
-  return res.data;
+
+  // 🔥 FIX: Mapear los datos del backend a los que espera la UI
+  // 1. Cambiamos 'nombre' a 'name'
+  // 2. Copiamos 'foto_url' explícitamente
+  if (Array.isArray(res.data)) {
+    return res.data.map((f: any) => ({
+      id: f.id,
+      firebase_uid: f.firebase_uid,
+      name: f.nombre,
+      email: f.correo,
+      foto_url: f.foto_url,
+
+      groupsInCommon: f.gruposEnComun || 0,
+      groupsNames: f.nombresGrupos || [],
+    }));
+  }
+  return [];
 }
 
 /**
@@ -70,11 +99,14 @@ export async function deleteFriend(amigoId: string) {
   return res.data;
 }
 
+// Exportación por defecto actualizada para incluir todo
 export default {
   sendFriendRequest,
   getPendingReceived,
   acceptRequest,
   rejectRequest,
   deleteFriend,
-  getFriends
+  getFriends,
+  findUserByEmail,
+  inviteByEmail,
 };

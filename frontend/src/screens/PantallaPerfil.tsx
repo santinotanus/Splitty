@@ -32,13 +32,13 @@ export default function PantallaPerfil({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [clavePago, setClavePago] = useState('');
-  
+
   // Modal states
   const [showNameModal, setShowNameModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showClaveModal, setShowClaveModal] = useState(false);
-  
+
   // Form states
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -54,14 +54,14 @@ export default function PantallaPerfil({ navigation }: any) {
 
   const loadUserData = async () => {
     if (!user) return;
-    
+
     try {
       // Load from backend
       const backendUser = await getCurrentUser();
       setNombre(backendUser?.nombre || user.displayName || '');
       setClavePago(backendUser?.clave_pago || '');
       setEmail(user.email || '');
-      
+
       // Load profile image from ProfileContext (Firestore + cache)
       await loadProfileImage(user.uid);
     } catch (error) {
@@ -118,6 +118,8 @@ export default function PantallaPerfil({ navigation }: any) {
     }
   };
 
+  // ... (mantén todo el código anterior igual hasta handleChangePhoto)
+
   const handleChangePhoto = async () => {
     try {
       // Solicitar permisos
@@ -132,24 +134,45 @@ export default function PantallaPerfil({ navigation }: any) {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
-        base64: true, // Obtener base64 directamente para evitar problemas con Blob
+        quality: 0.7, // Reducir un poco la calidad para que sea más liviano
+        base64: true, // ✅ Pedir base64
       });
 
       if (!result.canceled && result.assets[0] && user?.uid) {
         const asset = result.assets[0];
 
-        // Update immediately the UI with the local URI
+        console.log('📷 Image selected:', {
+          uri: asset.uri?.substring(0, 50) + '...',
+          hasBase64: !!asset.base64,
+          base64Length: asset.base64?.length || 0
+        });
+
+        // ✅ Actualizar UI inmediatamente con la imagen local
         setProfileImage(asset.uri);
 
-        // Always pass the local file URI to uploadProfileImage. The upload helper
-        // will attempt unsigned Cloudinary upload with the file URI and fall back
-        // to the Firebase Storage base64 flow if needed.
-        const imageSource = asset.uri;
+        // 🔥 FIX: Verificar que tenemos el base64
+        if (!asset.base64) {
+          console.error('❌ No base64 data from ImagePicker');
+          Alert.alert('Error', 'No se pudo leer la imagen');
+          return;
+        }
 
-        uploadProfileImage(imageSource, user.uid).catch((error) => {
-          console.error('Error uploading profile image:', error);
-        });
+        // 🔥 FIX: Pasar el base64 completo (con el prefijo data:image)
+        const mimeType = asset.uri.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+        const base64WithPrefix = `data:${mimeType};base64,${asset.base64}`;
+
+        console.log('📤 Uploading with base64, length:', base64WithPrefix.length);
+
+        // Subir la imagen (pasa el base64, NO el uri)
+        try {
+          await uploadProfileImage(base64WithPrefix, user.uid);
+          Alert.alert('✅ Listo', 'Foto de perfil actualizada');
+        } catch (uploadError: any) {
+          console.error('Upload error:', uploadError);
+          Alert.alert('Error', 'No se pudo subir la foto: ' + (uploadError?.message || 'Error desconocido'));
+          // Revertir la UI a la imagen anterior
+          loadProfileImage(user.uid);
+        }
       }
     } catch (error) {
       console.error('Error selecting image:', error);
@@ -167,7 +190,7 @@ export default function PantallaPerfil({ navigation }: any) {
       Alert.alert('Error', 'El nombre no puede estar vacío');
       return;
     }
-    
+
     setLoading(true);
     try {
       await updateUser({ nombre: newName.trim() });
@@ -261,7 +284,7 @@ export default function PantallaPerfil({ navigation }: any) {
 
       // Update password
       await updatePassword(user, newPassword);
-      
+
       setShowPasswordModal(false);
       Alert.alert('Éxito', 'Contraseña actualizada correctamente');
     } catch (error: any) {
@@ -320,14 +343,14 @@ export default function PantallaPerfil({ navigation }: any) {
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>
             ) : (
-              <Image 
-                source={{ uri: profileImage }} 
+              <Image
+                source={{ uri: profileImage }}
                 style={styles.profilePhoto}
               />
             )}
           </View>
-          <TouchableOpacity 
-            onPress={handleChangePhoto} 
+          <TouchableOpacity
+            onPress={handleChangePhoto}
             style={styles.changePhotoButton}
             disabled={profileLoading}
           >
@@ -393,7 +416,7 @@ export default function PantallaPerfil({ navigation }: any) {
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.logoutButton, { backgroundColor: colors.error }]}
           onPress={handleLogout}
         >
@@ -409,7 +432,7 @@ export default function PantallaPerfil({ navigation }: any) {
         transparent={true}
         onRequestClose={() => setShowNameModal(false)}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
@@ -452,7 +475,7 @@ export default function PantallaPerfil({ navigation }: any) {
         transparent={true}
         onRequestClose={() => setShowEmailModal(false)}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
@@ -497,7 +520,7 @@ export default function PantallaPerfil({ navigation }: any) {
         transparent={true}
         onRequestClose={() => setShowPasswordModal(false)}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
@@ -555,7 +578,7 @@ export default function PantallaPerfil({ navigation }: any) {
         transparent={true}
         onRequestClose={() => setShowClaveModal(false)}
       >
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >

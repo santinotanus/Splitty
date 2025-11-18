@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityInd
 import { Feather } from '@expo/vector-icons';
 import { Camera, CameraView } from 'expo-camera';
 import { useUnirseGrupo } from '../viewmodels/useUnirseGrupo';
+import { useTheme } from '../contexts/ThemeContext'; // <-- 1. Importación necesaria
 
 export default function UnirseGrupo({ navigation }: any) {
   const [token, setToken] = useState('');
@@ -15,6 +16,10 @@ export default function UnirseGrupo({ navigation }: any) {
   const [scanned, setScanned] = useState(false);
 
   const processingCode = useRef(false);
+
+  // 2. Obtener colores del tema y crear estilos dinámicos
+  const { colors } = useTheme();
+  const styles = getStyles(colors);
 
   useEffect(() => {
     requestCameraPermission();
@@ -158,7 +163,7 @@ export default function UnirseGrupo({ navigation }: any) {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={24} color="#033E30" />
+          <Feather name="arrow-left" size={24} color={colors.primary} />
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <Text style={styles.title}>Unirse a un Grupo</Text>
@@ -169,7 +174,7 @@ export default function UnirseGrupo({ navigation }: any) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.illustration}>
           <View style={styles.illustrationCircle}>
-            <Feather name="users" size={40} color="#033E30" />
+            <Feather name="users" size={40} color={colors.primary} />
           </View>
         </View>
 
@@ -185,7 +190,7 @@ export default function UnirseGrupo({ navigation }: any) {
           disabled={loading}
         >
           <View style={styles.scanIconCircle}>
-            <Feather name="camera" size={32} color="#033E30" />
+            <Feather name="camera" size={32} color={colors.primary} />
           </View>
           <Text style={styles.scanButtonTitle}>Escanear código QR</Text>
           <Text style={styles.scanButtonSubtitle}>
@@ -207,10 +212,11 @@ export default function UnirseGrupo({ navigation }: any) {
           </Text>
 
           <View style={styles.inputContainer}>
-            <Feather name="link" size={20} color="#666" style={styles.inputIcon} />
+            <Feather name="link" size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="splitty://join?groupId=..."
+              placeholderTextColor={colors.textMuted}
               value={token}
               onChangeText={setToken}
               editable={!loading}
@@ -221,7 +227,7 @@ export default function UnirseGrupo({ navigation }: any) {
             />
             {token.length > 0 && (
               <TouchableOpacity onPress={() => setToken('')} style={styles.clearButton}>
-                <Feather name="x" size={18} color="#666" />
+                <Feather name="x" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -231,7 +237,7 @@ export default function UnirseGrupo({ navigation }: any) {
             onPress={handlePasteFromClipboard}
             disabled={loading}
           >
-            <Feather name="clipboard" size={16} color="#033E30" style={{ marginRight: 6 }} />
+            <Feather name="clipboard" size={16} color={colors.primary} style={{ marginRight: 6 }} />
             <Text style={styles.pasteButtonText}>Pegar desde portapapeles</Text>
           </TouchableOpacity>
 
@@ -241,10 +247,10 @@ export default function UnirseGrupo({ navigation }: any) {
             disabled={loading || !token.trim()}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.primaryText} />
             ) : (
               <>
-                <Feather name="check" size={18} color="#fff" style={{ marginRight: 8 }} />
+                <Feather name="check" size={18} color={colors.primaryText} style={{ marginRight: 8 }} />
                 <Text style={styles.buttonText}>Unirse al grupo</Text>
               </>
             )}
@@ -252,7 +258,7 @@ export default function UnirseGrupo({ navigation }: any) {
         </View>
 
         <View style={styles.infoCard}>
-          <Feather name="info" size={16} color="#666" style={{ marginRight: 8 }} />
+          <Feather name="info" size={16} color={colors.textMuted} style={{ marginRight: 8 }} />
           <Text style={styles.infoText}>
             Los códigos de invitación expiran después de un tiempo. Si el tuyo no funciona, pedí uno nuevo.
           </Text>
@@ -300,7 +306,7 @@ export default function UnirseGrupo({ navigation }: any) {
             </CameraView>
           ) : (
             <View style={styles.noPermission}>
-              <Feather name="camera-off" size={48} color="#666" />
+              <Feather name="camera-off" size={48} color={colors.textMuted} />
               <Text style={styles.noPermissionText}>
                 No tenemos permiso para usar la cámara
               </Text>
@@ -312,24 +318,26 @@ export default function UnirseGrupo({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
+// Estilos dinámicos definidos como función al final del archivo, como solicitaste.
+// Es necesaria una función para pasar los colores dinámicos del tema.
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E6F4F1'
+    backgroundColor: colors.background
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     paddingTop: 60,
-    backgroundColor: '#fff',
+    backgroundColor: colors.headerBackground,
     borderBottomWidth: 1,
-    borderBottomColor: '#e6eee9'
+    borderBottomColor: colors.borderLight
   },
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#033E30'
+    color: colors.primary
   },
   scrollContent: {
     padding: 16,
@@ -343,40 +351,40 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#DFF4EA',
+    backgroundColor: colors.emojiCircle,
     alignItems: 'center',
     justifyContent: 'center'
   },
   mainTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#033E30',
+    color: colors.primary,
     textAlign: 'center',
     marginBottom: 8
   },
   mainSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textMuted,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 20,
     paddingHorizontal: 16
   },
   scanButtonLarge: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 2,
-    borderColor: '#033E30',
+    borderColor: colors.primary,
     borderStyle: 'dashed'
   },
   scanIconCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#DFF4EA',
+    backgroundColor: colors.emojiCircle,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16
@@ -384,12 +392,12 @@ const styles = StyleSheet.create({
   scanButtonTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#033E30',
+    color: colors.primary,
     marginBottom: 8
   },
   scanButtonSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textMuted,
     textAlign: 'center'
   },
   divider: {
@@ -400,30 +408,30 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e6eee9'
+    backgroundColor: colors.borderLight
   },
   dividerText: {
     marginHorizontal: 12,
     fontSize: 12,
-    color: '#666',
+    color: colors.textMuted,
     fontWeight: '600'
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e6eee9'
+    borderColor: colors.borderLight
   },
   cardTitle: {
     fontWeight: '700',
-    color: '#033E30',
+    color: colors.primary,
     marginBottom: 4,
     fontSize: 16
   },
   cardSubtitle: {
-    color: '#666',
+    color: colors.textMuted,
     marginBottom: 16,
     fontSize: 13,
     lineHeight: 18
@@ -431,23 +439,24 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#f6f9f6',
+    backgroundColor: colors.background,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e6eee9',
+    borderColor: colors.borderLight,
     marginBottom: 12,
     paddingHorizontal: 12,
     minHeight: 80
   },
   inputIcon: {
     marginRight: 8,
-    marginTop: 12
+    marginTop: 12,
+    color: colors.textMuted,
   },
   input: {
     flex: 1,
     padding: 12,
     fontSize: 14,
-    color: '#033E30',
+    color: colors.text,
     textAlignVertical: 'top'
   },
   clearButton: {
@@ -458,15 +467,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f6f9f6',
+    backgroundColor: colors.background,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e6eee9',
+    borderColor: colors.borderLight,
     marginBottom: 12
   },
   pasteButtonText: {
-    color: '#033E30',
+    color: colors.primary,
     fontWeight: '600',
     fontSize: 14
   },
@@ -474,32 +483,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#033E30',
+    backgroundColor: colors.primary,
     padding: 14,
     borderRadius: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.primaryText,
     fontWeight: '600',
     fontSize: 15
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.cardBackground,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e6eee9',
+    borderColor: colors.borderLight,
     alignItems: 'flex-start',
     marginBottom: 16
   },
   infoText: {
     flex: 1,
-    color: '#666',
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 16
   },
-  // Scanner styles
+  // Scanner styles (Mantenidos en blanco/negro)
   scannerContainer: {
     flex: 1,
     backgroundColor: '#000'

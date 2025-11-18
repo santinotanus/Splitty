@@ -1,10 +1,11 @@
-// frontend/src/navigation/MainTabs.tsx
 import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+// 1. Importación necesaria para manejar el área segura
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; 
 
 import Inicio from '../screens/Inicio';
 import Gastos from '../screens/Gastos';
@@ -51,8 +52,10 @@ const Tab = createBottomTabNavigator();
 
 export default function MainTabs() {
     const { colors, theme } = useTheme();
+    // 2. Obtener los insets del área segura
+    const insets = useSafeAreaInsets();
     
-    // Forzar actualización de estilos cuando cambia el tema
+    // Forzar actualización de estilos cuando cambia el tema o los insets
     const tabBarStyle = useMemo(() => [
         styles.tabBar, 
         { 
@@ -60,8 +63,12 @@ export default function MainTabs() {
             borderTopColor: colors.borderLight,
             shadowColor: theme === 'dark' ? '#000' : '#000',
             shadowOpacity: theme === 'dark' ? 0.3 : 0.1,
+            // 3. Aplicar el padding dinámico
+            paddingBottom: styles.tabBar.paddingBase + insets.bottom,
+            // 4. Establecer altura dinámica (si el 'height' estático se elimina)
+            height: styles.tabBar.minHeight + insets.bottom
         }
-    ], [colors.modalBackground, colors.borderLight, theme]);
+    ], [colors.modalBackground, colors.borderLight, theme, insets.bottom]);
     
     return (
         <Tab.Navigator
@@ -126,9 +133,12 @@ export default function MainTabs() {
 
 const styles = StyleSheet.create({
     tabBar: {
-        height: 80,
-        paddingBottom: 20,
+        // Se define una altura mínima y un padding base para el cálculo dinámico.
+        // Se remueven los valores fijos de height y paddingBottom para dar paso al cálculo dinámico.
+        minHeight: 60, // Altura base mínima para el contenido (iconos + labels)
+        paddingBase: 10, // Base padding que quieres debajo de los iconos (antes era 20)
         paddingTop: 10,
+        
         borderTopWidth: 1,
         elevation: 8,
         shadowColor: '#000',

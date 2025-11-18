@@ -6,6 +6,8 @@ import { useTheme } from '../contexts/ThemeContext';
 
 export default function Gastos() {
   const { colors } = useTheme();
+  // 1. Usar getStyles con los colores del tema
+  const styles = getStyles(colors);
   const { data, loading, error, refresh } = useGastos();
   const isFocused = useIsFocused();
 
@@ -14,39 +16,44 @@ export default function Gastos() {
   }, [isFocused]);
 
   if (loading) return (
-    <View style={[styles.center, { backgroundColor: colors.background }]}>
+    // Se usan los estilos definidos dinámicamente
+    <View style={styles.center}>
       <ActivityIndicator size="large" color={colors.primary} />
     </View>
   );
 
   if (error) return (
-    <View style={[styles.center, { backgroundColor: colors.background }]}>
+    <View style={styles.center}>
       <Text style={[styles.errorText, { color: colors.error }]}>Error cargando gastos</Text>
     </View>
   );
 
   if (!loading && Array.isArray(data) && data.length === 0) return (
-    <View style={[styles.center, { backgroundColor: colors.background }]}>
+    <View style={styles.center}>
       <Text style={[styles.emptyText, { color: colors.textMuted }]}>No hay gastos para mostrar.</Text>
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Gastos</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Gastos</Text>
       <FlatList
         data={data}
         keyExtractor={(item, idx) => item.id?.toString() || idx.toString()}
         renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <View>
-                <Text style={[styles.cardGroup, { color: colors.textSecondary }]}>{item.groupName || item.groupId}</Text>
-                <Text style={[styles.cardDesc, { color: colors.text }]}>{item.descripcion || 'Gasto sin descripción'}</Text>
-                <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>Pagador: {item.pagador_nombre || item.pagador_correo || item.pagador_id}</Text>
+          <View style={styles.card}>
+            {/* Contenedor principal de la fila, asegurando espacio entre elementos */}
+            <View style={styles.cardContentRow}>
+              {/* Contenedor de Texto: Flex: 1 para ocupar la mayor parte del espacio */}
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardGroup}>{item.groupName || item.groupId}</Text>
+                <Text style={styles.cardDesc}>{item.descripcion || 'Gasto sin descripción'}</Text>
+                <Text style={styles.cardMeta}>Pagador: {item.pagador_nombre || item.pagador_correo || item.pagador_id}</Text>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[styles.amount, { color: colors.text }]}>${Number(item.importe || 0).toFixed(2)}</Text>
+
+              {/* Contenedor de Monto: Se alinea a la derecha */}
+              <View style={styles.cardAmountContainer}>
+                <Text style={styles.amount}>${Number(item.importe || 0).toFixed(2)}</Text>
                 {typeof item.owedAmount === 'number' ? (
                   item.owedAmount > 0 ? (
                     <Text style={{ color: colors.success }}>Te deben ${Number(item.owedAmount).toFixed(2)}</Text>
@@ -56,7 +63,7 @@ export default function Gastos() {
                     <Text style={{ color: colors.textMuted }}>Saldado</Text>
                   )
                 ) : null}
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{(item.participantes || []).length} participantes</Text>
+                <Text style={styles.cardParticipantCount}>{(item.participantes || []).length} participantes</Text>
               </View>
             </View>
           </View>
@@ -66,34 +73,73 @@ export default function Gastos() {
   );
 }
 
-const styles = StyleSheet.create({
+// Estilos definidos como una función para usar colores del tema
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    paddingHorizontal: 16, // Padding Horizontal
+    paddingTop: 50,      // <--- CAMBIO: Padding Top aumentado para bajar el título
+    backgroundColor: colors.background,
   },
   card: {
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
-    shadowColor: '#000',
+    backgroundColor: colors.modalBackground,
+    borderColor: colors.borderLight,
+    shadowColor: colors.text,
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
     borderWidth: 1,
   },
-  cardGroup: { fontSize: 12 },
-  cardDesc: { fontSize: 16, fontWeight: '700', marginTop: 4 },
-  cardMeta: { fontSize: 12, marginTop: 6 },
-  amount: { fontSize: 18, fontWeight: '700' },
+  cardContentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardTextContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
+  cardAmountContainer: {
+    alignItems: 'flex-end',
+  },
+  cardGroup: {
+    fontSize: 12,
+    color: colors.textSecondary
+  },
+  cardDesc: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 4,
+    color: colors.text,
+  },
+  cardMeta: {
+    fontSize: 12,
+    marginTop: 6,
+    color: colors.textSecondary
+  },
+  amount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  cardParticipantCount: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.background,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 12,
+    color: colors.text,
   },
   errorText: {},
   emptyText: {

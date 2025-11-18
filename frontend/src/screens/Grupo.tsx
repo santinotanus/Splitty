@@ -14,6 +14,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useGrupo } from '../viewmodels/useGrupo';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import * as balancesApi from '../api/balances';
 import * as gastosApi from '../api/gastos';
 import * as Clipboard from 'expo-clipboard';
@@ -22,6 +23,7 @@ import { Linking } from 'react-native';
 export default function Grupo({ route, navigation }: any) {
   const { grupoId, nombre, emoji, descripcion } = route.params || {};
   const { user } = useAuth();
+  const { colors } = useTheme();
   const [optionsVisible, setOptionsVisible] = useState(false);
   const { members, loading, refreshMembers, groupTotal } = useGrupo(grupoId) as any;
   const [activeTab, setActiveTab] = useState<'gastos' | 'deudas'>('gastos');
@@ -115,31 +117,31 @@ export default function Grupo({ route, navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.modalBackground, borderBottomColor: colors.borderLight }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>{'‹'}</Text>
+          <Text style={[styles.back, { color: colors.text }]}>{'‹'}</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center' }}>
           <View style={styles.headerTitleRow}>
             <Text style={styles.emojiHeader}>{emoji || '✈️'}</Text>
-            <Text style={styles.headerTitle}>{nombre || 'Grupo'}</Text>
+            <Text style={[styles.headerTitle, { color: colors.text }]}>{nombre || 'Grupo'}</Text>
           </View>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
             {membersCount} miembro{membersCount !== 1 ? 's' : ''}
           </Text>
         </View>
         <TouchableOpacity onPress={handleSettings}>
-          <Feather name="settings" size={22} color="#033E30" />
+          <Feather name="settings" size={22} color={colors.iconColor} />
         </TouchableOpacity>
       </View>
 
       {/* Balance */}
-      <View style={styles.balanceBox}>
-        <Text style={styles.balanceLabel}>Balance del grupo</Text>
-        <Text style={styles.balanceAmount}>${(groupTotal ?? 0).toFixed(2)}</Text>
-        <Text style={styles.totalSpent}>Total gastado</Text>
+      <View style={[styles.balanceBox, { backgroundColor: colors.modalBackground, borderBottomColor: colors.borderLight }]}>
+        <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>Balance del grupo</Text>
+        <Text style={[styles.balanceAmount, { color: colors.text }]}>${(groupTotal ?? 0).toFixed(2)}</Text>
+        <Text style={[styles.totalSpent, { color: colors.textSecondary }]}>Total gastado</Text>
 
         {/* Miembros con sus balances */}
         {members.length > 0 && (
@@ -150,8 +152,8 @@ export default function Grupo({ route, navigation }: any) {
 
               return (
                 <View key={m.id} style={{ alignItems: 'center', width: 80 }}>
-                  <View style={[styles.avatarCircle, { backgroundColor: '#033E30' }]}>
-                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                  <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+                    <Text style={{ color: colors.primaryText, fontWeight: '700', fontSize: 16 }}>
                       {(m.nombre || m.correo || 'U').charAt(0).toUpperCase()}
                     </Text>
                   </View>
@@ -161,17 +163,18 @@ export default function Grupo({ route, navigation }: any) {
                       fontWeight: '700',
                       fontSize: 12,
                       textAlign: 'center',
+                      color: colors.text,
                     }}
                     numberOfLines={1}
                   >
                     {m.nombre || m.correo}
                   </Text>
-                  <Text style={{ color: '#666', fontSize: 11, marginTop: 2 }}>
+                  <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
                     Pagó ${(m.totalPagado || 0).toFixed(2)}
                   </Text>
                   <Text
                     style={{
-                      color: isPositive ? '#0A8F4A' : '#B00020',
+                      color: isPositive ? colors.success : colors.error,
                       fontSize: 12,
                       fontWeight: '600',
                       marginTop: 2,
@@ -187,26 +190,26 @@ export default function Grupo({ route, navigation }: any) {
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabsRow}>
+      <View style={[styles.tabsRow, { backgroundColor: colors.background }]}>
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === 'gastos' ? { backgroundColor: '#033E30' } : { backgroundColor: '#f0f0f0' }
+            { backgroundColor: activeTab === 'gastos' ? colors.primary : colors.cardBackground }
           ]}
           onPress={() => setActiveTab('gastos')}
         >
-          <Text style={{ color: activeTab === 'gastos' ? '#fff' : '#666', fontWeight: '600' }}>
+          <Text style={{ color: activeTab === 'gastos' ? colors.primaryText : colors.textMuted, fontWeight: '600' }}>
             Gastos
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.tab,
-            activeTab === 'deudas' ? { backgroundColor: '#033E30' } : { backgroundColor: '#f0f0f0' }
+            { backgroundColor: activeTab === 'deudas' ? colors.primary : colors.cardBackground }
           ]}
           onPress={() => setActiveTab('deudas')}
         >
-          <Text style={{ color: activeTab === 'deudas' ? '#fff' : '#666', fontWeight: '600' }}>
+          <Text style={{ color: activeTab === 'deudas' ? colors.primaryText : colors.textMuted, fontWeight: '600' }}>
             Deudas
           </Text>
         </TouchableOpacity>
@@ -215,24 +218,24 @@ export default function Grupo({ route, navigation }: any) {
       {/* Content for each tab */}
       {activeTab === 'gastos' ? (
         <View style={{ flex: 1 }}>
-          <View style={styles.recentHeader}>
-            <Text style={{ fontWeight: '700', fontSize: 16 }}>Gastos recientes</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{(groupExpenses || []).length} gastos</Text>
+          <View style={[styles.recentHeader, { backgroundColor: colors.background }]}>
+            <Text style={{ fontWeight: '700', fontSize: 16, color: colors.text }}>Gastos recientes</Text>
+            <View style={[styles.badge, { backgroundColor: colors.badgeBackground }]}>
+              <Text style={[styles.badgeText, { color: colors.badgeText }]}>{(groupExpenses || []).length} gastos</Text>
             </View>
           </View>
 
           {expensesLoading ? (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-              <ActivityIndicator size="large" color="#033E30" />
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : (groupExpenses.length === 0 ? (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 }}>
-              <Feather name="inbox" size={48} color="#ccc" />
-              <Text style={{ color: '#666', marginTop: 16, textAlign: 'center', fontSize: 16 }}>
+              <Feather name="inbox" size={48} color={colors.iconColor} />
+              <Text style={{ color: colors.textSecondary, marginTop: 16, textAlign: 'center', fontSize: 16 }}>
                 No hay gastos en este grupo
               </Text>
-              <Text style={{ color: '#999', marginTop: 8, textAlign: 'center', fontSize: 14 }}>
+              <Text style={{ color: colors.textMuted, marginTop: 8, textAlign: 'center', fontSize: 14 }}>
                 Presiona el botón + para agregar el primer gasto
               </Text>
             </View>
@@ -242,17 +245,17 @@ export default function Grupo({ route, navigation }: any) {
               keyExtractor={(item) => item.id}
               contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 80 }}
               renderItem={({ item: g }) => (
-                <View style={styles.expenseCard}>
+                <View style={[styles.expenseCard, { backgroundColor: colors.cardBackground }]}>
                   <View style={styles.expenseHeader}>
-                    <View style={styles.expenseIcon}>
-                      <Feather name="shopping-bag" size={20} color="#033E30" />
+                    <View style={[styles.expenseIcon, { backgroundColor: colors.emojiCircle }]}>
+                      <Feather name="shopping-bag" size={20} color={colors.primary} />
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.expenseTitle}>{g.descripcion || 'Gasto'}</Text>
-                      <Text style={styles.expenseMeta}>
+                      <Text style={[styles.expenseTitle, { color: colors.text }]}>{g.descripcion || 'Gasto'}</Text>
+                      <Text style={[styles.expenseMeta, { color: colors.textSecondary }]}>
                         Pagado por {g.pagador_nombre || g.pagador_correo}
                       </Text>
-                      <Text style={styles.expenseDate}>
+                      <Text style={[styles.expenseDate, { color: colors.textMuted }]}>
                         {new Date(g.fecha_pago).toLocaleDateString('es-AR', {
                           day: '2-digit',
                           month: 'short',
@@ -261,12 +264,12 @@ export default function Grupo({ route, navigation }: any) {
                       </Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={styles.expenseAmount}>
+                      <Text style={[styles.expenseAmount, { color: colors.text }]}>
                         ${Number(g.importe || 0).toFixed(2)}
                       </Text>
-                      <View style={styles.participantsBadge}>
-                        <Feather name="users" size={12} color="#666" />
-                        <Text style={styles.participantsBadgeText}>
+                      <View style={[styles.participantsBadge, { backgroundColor: colors.emojiCircle }]}>
+                        <Feather name="users" size={12} color={colors.iconColor} />
+                        <Text style={[styles.participantsBadgeText, { color: colors.textSecondary }]}>
                           {g.participantes?.length ?? 0}
                         </Text>
                       </View>
@@ -281,30 +284,30 @@ export default function Grupo({ route, navigation }: any) {
         <View style={{ flex: 1 }}>
           {debtsLoading ? (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-              <ActivityIndicator size="large" color="#033E30" />
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
           ) : (
             <View style={{ flex: 1, padding: 16 }}>
               {/* Deudas */}
               <View style={{ marginBottom: 24 }}>
-                <Text style={styles.debtSectionTitle}>Tus deudas</Text>
+                <Text style={[styles.debtSectionTitle, { color: colors.text }]}>Tus deudas</Text>
                 {debts.length === 0 ? (
-                  <View style={styles.emptyDebtCard}>
-                    <Feather name="check-circle" size={32} color="#0A8F4A" />
-                    <Text style={styles.emptyDebtText}>¡No tenés deudas!</Text>
+                  <View style={[styles.emptyDebtCard, { backgroundColor: colors.cardBackground }]}>
+                    <Feather name="check-circle" size={32} color={colors.success} />
+                    <Text style={[styles.emptyDebtText, { color: colors.textSecondary }]}>¡No tenés deudas!</Text>
                   </View>
                 ) : (
                   debts.map((d: any, idx: number) => (
-                    <TouchableOpacity key={idx} style={styles.debtCard} onPress={() => navigation.navigate('DebtDetail', { debt: d, grupoId, deudorId: currentMember?.id })}>
-                      <View style={[styles.debtIcon, { backgroundColor: '#FFE6E6' }]}>
-                        <Feather name="arrow-up-right" size={20} color="#B00020" />
+                    <TouchableOpacity key={idx} style={[styles.debtCard, { backgroundColor: colors.cardBackground }]} onPress={() => navigation.navigate('DebtDetail', { debt: d, grupoId, deudorId: currentMember?.id })}>
+                      <View style={[styles.debtIcon, { backgroundColor: colors.successLight }]}>
+                        <Feather name="arrow-up-right" size={20} color={colors.error} />
                       </View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.debtName}>{d.haciaUsuarioNombre || d.haciaUsuarioCorreo}</Text>
-                        <Text style={styles.debtLabel}>{d.gastoDescripcion || 'Pago pendiente'}</Text>
+                        <Text style={[styles.debtName, { color: colors.text }]}>{d.haciaUsuarioNombre || d.haciaUsuarioCorreo}</Text>
+                        <Text style={[styles.debtLabel, { color: colors.textSecondary }]}>{d.gastoDescripcion || 'Pago pendiente'}</Text>
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={[styles.debtAmount, { color: '#B00020' }]}>
+                        <Text style={[styles.debtAmount, { color: colors.error }]}>
                           ${Number(d.importe).toFixed(2)}
                         </Text>
                       </View>
@@ -315,23 +318,23 @@ export default function Grupo({ route, navigation }: any) {
 
               {/* Créditos */}
               <View>
-                <Text style={styles.debtSectionTitle}>Te deben</Text>
+                <Text style={[styles.debtSectionTitle, { color: colors.text }]}>Te deben</Text>
                 {credits.length === 0 ? (
-                  <View style={styles.emptyDebtCard}>
-                    <Feather name="inbox" size={32} color="#999" />
-                    <Text style={styles.emptyDebtText}>Nadie te debe</Text>
+                  <View style={[styles.emptyDebtCard, { backgroundColor: colors.cardBackground }]}>
+                    <Feather name="inbox" size={32} color={colors.iconColor} />
+                    <Text style={[styles.emptyDebtText, { color: colors.textSecondary }]}>Nadie te debe</Text>
                   </View>
                 ) : (
                   credits.map((c: any, idx: number) => (
-                    <View key={idx} style={styles.debtCard}>
-                      <View style={[styles.debtIcon, { backgroundColor: '#DFF4EA' }]}>
-                        <Feather name="arrow-down-left" size={20} color="#0A8F4A" />
+                    <View key={idx} style={[styles.debtCard, { backgroundColor: colors.cardBackground }]}>
+                      <View style={[styles.debtIcon, { backgroundColor: colors.successLight }]}>
+                        <Feather name="arrow-down-left" size={20} color={colors.success} />
                       </View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.debtName}>{c.desdeUsuarioNombre || c.desdeUsuarioCorreo}</Text>
-                        <Text style={styles.debtLabel}>Te debe</Text>
+                        <Text style={[styles.debtName, { color: colors.text }]}>{c.desdeUsuarioNombre || c.desdeUsuarioCorreo}</Text>
+                        <Text style={[styles.debtLabel, { color: colors.textSecondary }]}>Te debe</Text>
                       </View>
-                      <Text style={[styles.debtAmount, { color: '#0A8F4A' }]}>
+                      <Text style={[styles.debtAmount, { color: colors.success }]}>
                         ${Number(c.importe).toFixed(2)}
                       </Text>
                     </View>
@@ -344,8 +347,8 @@ export default function Grupo({ route, navigation }: any) {
       )}
 
       {/* Floating + */}
-      <TouchableOpacity style={styles.fab} onPress={() => setOptionsVisible(true)}>
-        <Text style={{ color: '#fff', fontSize: 28 }}>+</Text>
+      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => setOptionsVisible(true)}>
+        <Text style={{ color: colors.primaryText, fontSize: 28 }}>+</Text>
       </TouchableOpacity>
 
       {/* Modal for + options */}
@@ -356,37 +359,37 @@ export default function Grupo({ route, navigation }: any) {
           onPress={() => setOptionsVisible(false)}
         >
           <TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>¿Qué querés hacer?</Text>
+            <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>¿Qué querés hacer?</Text>
 
               <TouchableOpacity
-                style={[styles.modalButton, membersCount === 0 && { opacity: 0.5 }]}
+                style={[styles.modalButton, { backgroundColor: colors.primary }, membersCount === 0 && { opacity: 0.5 }]}
                 disabled={membersCount === 0}
                 onPress={() => {
                   setOptionsVisible(false);
                   navigation.navigate('AddGasto', { grupoId, nombre });
                 }}
               >
-                <Feather name="plus-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.modalButtonText}>Añadir Gasto</Text>
+                <Feather name="plus-circle" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
+                <Text style={[styles.modalButtonText, { color: colors.primaryText }]}>Añadir Gasto</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.modalButtonSecondary}
+                style={[styles.modalButtonSecondary, { backgroundColor: colors.cardBackground, borderColor: colors.borderLight }]}
                 onPress={() => {
                   setOptionsVisible(false);
                   handleInvite();
                 }}
               >
-                <Feather name="user-plus" size={20} color="#033E30" style={{ marginRight: 8 }} />
-                <Text style={styles.modalButtonTextSecondary}>Invitar a alguien</Text>
+                <Feather name="user-plus" size={20} color={colors.text} style={{ marginRight: 8 }} />
+                <Text style={[styles.modalButtonTextSecondary, { color: colors.text }]}>Invitar a alguien</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={{ marginTop: 12, alignItems: 'center', paddingVertical: 8 }}
                 onPress={() => setOptionsVisible(false)}
               >
-                <Text style={{ color: '#666', fontSize: 15 }}>Cancelar</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 15 }}>Cancelar</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>

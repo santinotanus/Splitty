@@ -2,8 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
 import { useGastos } from '../viewmodels/useGastos';
 import { useIsFocused } from '@react-navigation/native';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Gastos() {
+  const { colors } = useTheme();
   const { data, loading, error, refresh } = useGastos();
   const isFocused = useIsFocused();
 
@@ -12,46 +14,49 @@ export default function Gastos() {
   }, [isFocused]);
 
   if (loading) return (
-    <View style={styles.center}><ActivityIndicator size="large" color="#7A2A2A" /></View>
+    <View style={[styles.center, { backgroundColor: colors.background }]}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
   );
 
   if (error) return (
-    <View style={styles.center}><Text style={styles.errorText}>Error cargando gastos</Text></View>
+    <View style={[styles.center, { backgroundColor: colors.background }]}>
+      <Text style={[styles.errorText, { color: colors.error }]}>Error cargando gastos</Text>
+    </View>
   );
 
-  // Mostrar placeholder cuando no hay datos (evita pantalla en blanco)
   if (!loading && Array.isArray(data) && data.length === 0) return (
-    <View style={styles.center}>
-      <Text style={styles.emptyText}>No hay gastos para mostrar.</Text>
+    <View style={[styles.center, { backgroundColor: colors.background }]}>
+      <Text style={[styles.emptyText, { color: colors.textMuted }]}>No hay gastos para mostrar.</Text>
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Gastos</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Gastos</Text>
       <FlatList
         data={data}
         keyExtractor={(item, idx) => item.id?.toString() || idx.toString()}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <View>
-                <Text style={styles.cardGroup}>{item.groupName || item.groupId}</Text>
-                <Text style={styles.cardDesc}>{item.descripcion || 'Gasto sin descripción'}</Text>
-                <Text style={styles.cardMeta}>Pagador: {item.pagador_nombre || item.pagador_correo || item.pagador_id}</Text>
+                <Text style={[styles.cardGroup, { color: colors.textSecondary }]}>{item.groupName || item.groupId}</Text>
+                <Text style={[styles.cardDesc, { color: colors.text }]}>{item.descripcion || 'Gasto sin descripción'}</Text>
+                <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>Pagador: {item.pagador_nombre || item.pagador_correo || item.pagador_id}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.amount}>${Number(item.importe || 0).toFixed(2)}</Text>
+                <Text style={[styles.amount, { color: colors.text }]}>${Number(item.importe || 0).toFixed(2)}</Text>
                 {typeof item.owedAmount === 'number' ? (
                   item.owedAmount > 0 ? (
-                    <Text style={{ color: '#0A8F4A' }}>Te deben ${Number(item.owedAmount).toFixed(2)}</Text>
+                    <Text style={{ color: colors.success }}>Te deben ${Number(item.owedAmount).toFixed(2)}</Text>
                   ) : item.owedAmount < 0 ? (
-                    <Text style={{ color: '#B00020' }}>Debés ${Number(Math.abs(item.owedAmount)).toFixed(2)}</Text>
+                    <Text style={{ color: colors.error }}>Debés ${Number(Math.abs(item.owedAmount)).toFixed(2)}</Text>
                   ) : (
-                    <Text style={{ color: '#666' }}>Saldado</Text>
+                    <Text style={{ color: colors.textMuted }}>Saldado</Text>
                   )
                 ) : null}
-                <Text style={{ color: '#999', fontSize: 12 }}>{(item.participantes || []).length} participantes</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>{(item.participantes || []).length} participantes</Text>
               </View>
             </View>
           </View>
@@ -64,11 +69,9 @@ export default function Gastos() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF9F7',
     padding: 16,
   },
   card: {
-    backgroundColor: '#fff',
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -76,28 +79,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 1,
+    borderWidth: 1,
   },
-  cardGroup: { fontSize: 12, color: '#666' },
+  cardGroup: { fontSize: 12 },
   cardDesc: { fontSize: 16, fontWeight: '700', marginTop: 4 },
-  cardMeta: { fontSize: 12, color: '#666', marginTop: 6 },
-  amount: { fontSize: 18, fontWeight: '700', color: '#7A2A2A' },
+  cardMeta: { fontSize: 12, marginTop: 6 },
+  amount: { fontSize: 18, fontWeight: '700' },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF9F7',
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#7A2A2A',
     marginBottom: 12,
   },
-  errorText: {
-    color: '#B00020',
-  },
+  errorText: {},
   emptyText: {
-    color: '#6b6b6b',
     fontSize: 16,
     textAlign: 'center',
   },

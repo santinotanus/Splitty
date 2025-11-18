@@ -15,9 +15,11 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { useConfiguracionGrupo } from '../viewmodels/useConfiguracionGrupo';
 import { saveGroupEmoji } from '../utils/groupEmoji';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function ConfiguracionGrupo({ route, navigation }: any) {
   const { grupoId, nombre, descripcion, emoji } = route.params || {};
+  const { colors } = useTheme();
 
   const {
     loading,
@@ -247,48 +249,48 @@ export default function ConfiguracionGrupo({ route, navigation }: any) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#033E30" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.modalBackground, borderBottomColor: colors.borderLight }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Feather name="arrow-left" size={24} color="#033E30" />
+          <Feather name="arrow-left" size={24} color={colors.iconColor} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Configuración del grupo</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Configuración del grupo</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Información del grupo */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Información del grupo</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Información del grupo</Text>
 
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
             <View style={styles.cardRow}>
               <TouchableOpacity
-                style={styles.emojiCircle}
+                style={[styles.emojiCircle, { backgroundColor: colors.emojiCircle }]}
                 onPress={() => isAdmin && setShowEmojiModal(true)}
               >
                 <Text style={styles.emojiText}>{selectedEmoji}</Text>
                 {isAdmin && (
-                  <View style={styles.editEmojiBadge}>
-                    <Feather name="edit-2" size={10} color="#fff" />
+                  <View style={[styles.editEmojiBadge, { backgroundColor: colors.primary, borderColor: colors.modalBackground }]}>
+                    <Feather name="edit-2" size={10} color={colors.primaryText} />
                   </View>
                 )}
               </TouchableOpacity>
 
               <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.cardTitle}>{nombre}</Text>
-                <Text style={styles.cardSubtitle}>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{nombre}</Text>
+                <Text style={[styles.cardSubtitle, { color: colors.textSecondary }]}>
                   {descripcion || 'Sin descripción'}
                 </Text>
-                <Text style={styles.cardMeta}>
+                <Text style={[styles.cardMeta, { color: colors.textMuted }]}>
                   {miembros.length} miembro{miembros.length !== 1 ? 's' : ''}
                 </Text>
               </View>
@@ -298,26 +300,26 @@ export default function ConfiguracionGrupo({ route, navigation }: any) {
                   onPress={() => setShowEditModal(true)}
                   style={styles.editButton}
                 >
-                  <Feather name="edit-2" size={20} color="#666" />
+                  <Feather name="edit-2" size={20} color={colors.iconColor} />
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
           {/* Estadísticas */}
-          <View style={styles.statsCard}>
+          <View style={[styles.statsCard, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
             <View style={styles.statItem}>
-              <Feather name="dollar-sign" size={24} color="#033E30" />
-              <Text style={styles.statLabel}>Total gastado</Text>
-              <Text style={styles.statValue}>
+              <Feather name="dollar-sign" size={24} color={colors.primary} />
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Total gastado</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>
                 ${(grupoInfo?.totalGastado || 0).toFixed(2)}
               </Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={[styles.statDivider, { backgroundColor: colors.borderLight }]} />
             <View style={styles.statItem}>
-              <Feather name="users" size={24} color="#033E30" />
-              <Text style={styles.statLabel}>Miembros</Text>
-              <Text style={styles.statValue}>{miembros.length}</Text>
+              <Feather name="users" size={24} color={colors.primary} />
+              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Miembros</Text>
+              <Text style={[styles.statValue, { color: colors.text }]}>{miembros.length}</Text>
             </View>
           </View>
         </View>
@@ -325,37 +327,37 @@ export default function ConfiguracionGrupo({ route, navigation }: any) {
         {/* Miembros (Sin cambios en esta sección) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Miembros del grupo</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Miembros del grupo</Text>
             <TouchableOpacity onPress={() => setShowMembersModal(true)}>
-              <Text style={styles.sectionLink}>
+              <Text style={[styles.sectionLink, { color: colors.primary }]}>
                 Ver todos ({miembros.length})
               </Text>
             </TouchableOpacity>
           </View>
 
           {miembros.slice(0, 3).map((miembro) => (
-            <View key={miembro.id} style={styles.memberCard}>
-              <View style={styles.memberAvatar}>
-                <Text style={styles.memberAvatarText}>
+            <View key={miembro.id} style={[styles.memberCard, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+              <View style={[styles.memberAvatar, { backgroundColor: colors.emojiCircle }]}>
+                <Text style={[styles.memberAvatarText, { color: colors.text }]}>
                   {(miembro.nombre || miembro.correo || '?').charAt(0).toUpperCase()}
                 </Text>
               </View>
 
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <View style={styles.memberNameRow}>
-                  <Text style={styles.memberName}>{miembro.nombre || miembro.correo}</Text>
+                  <Text style={[styles.memberName, { color: colors.text }]}>{miembro.nombre || miembro.correo}</Text>
                   {miembro.rol === 'admin' && (
-                    <View style={styles.adminBadge}>
-                      <Text style={styles.adminBadgeText}>Admin</Text>
+                    <View style={[styles.adminBadge, { backgroundColor: colors.badgeBackground }]}>
+                      <Text style={[styles.adminBadgeText, { color: colors.badgeText }]}>Admin</Text>
                     </View>
                   )}
                 </View>
-                <Text style={styles.memberEmail}>{miembro.correo}</Text>
+                <Text style={[styles.memberEmail, { color: colors.textSecondary }]}>{miembro.correo}</Text>
               </View>
 
               {miembro.id === currentUserId && (
-                <View style={styles.youBadge}>
-                  <Text style={styles.youBadgeText}>Tú</Text>
+                <View style={[styles.youBadge, { backgroundColor: colors.emojiCircle }]}>
+                  <Text style={[styles.youBadgeText, { color: colors.text }]}>Tú</Text>
                 </View>
               )}
             </View>
@@ -363,39 +365,39 @@ export default function ConfiguracionGrupo({ route, navigation }: any) {
 
           {miembros.length > 3 && (
             <TouchableOpacity
-              style={styles.verMasButton}
+              style={[styles.verMasButton, { backgroundColor: colors.cardBackground }]}
               onPress={() => setShowMembersModal(true)}
             >
-              <Text style={styles.verMasText}>
+              <Text style={[styles.verMasText, { color: colors.primary }]}>
                 Ver {miembros.length - 3} miembro{miembros.length - 3 !== 1 ? 's' : ''} más
               </Text>
-              <Feather name="chevron-right" size={16} color="#033E30" />
+              <Feather name="chevron-right" size={16} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>
 
         {/* Configuración */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Configuración</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Configuración</Text>
 
-          <TouchableOpacity style={styles.settingRow} onPress={handleCompartirGrupo}>
-            <View style={styles.settingIcon}>
-              <Feather name="share-2" size={20} color="#033E30" />
+          <TouchableOpacity style={[styles.settingRow, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]} onPress={handleCompartirGrupo}>
+            <View style={[styles.settingIcon, { backgroundColor: colors.emojiCircle }]}>
+              <Feather name="share-2" size={20} color={colors.primary} />
             </View>
-            <Text style={styles.settingText}>Compartir grupo</Text>
-            <Feather name="chevron-right" size={20} color="#999" />
+            <Text style={[styles.settingText, { color: colors.text }]}>Compartir grupo</Text>
+            <Feather name="chevron-right" size={20} color={colors.iconColor} />
           </TouchableOpacity>
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingIcon}>
-              <Feather name="bell" size={20} color="#033E30" />
+          <View style={[styles.settingRow, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+            <View style={[styles.settingIcon, { backgroundColor: colors.emojiCircle }]}>
+              <Feather name="bell" size={20} color={colors.primary} />
             </View>
-            <Text style={styles.settingText}>Notificaciones</Text>
+            <Text style={[styles.settingText, { color: colors.text }]}>Notificaciones</Text>
             <Switch
               value={notificaciones}
               onValueChange={setNotificaciones}
-              trackColor={{ false: '#e6e6e6', true: '#DFF4EA' }}
-              thumbColor={notificaciones ? '#033E30' : '#f4f3f4'}
+              trackColor={{ false: colors.borderLight, true: colors.successLight }}
+              thumbColor={notificaciones ? colors.primary : colors.textMuted}
             />
           </View>
         </View>

@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Activi
 import { useAddGasto } from '../viewmodels/useAddGasto';
 import * as gastosApi from '../api/gastos';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function AddGasto({ route, navigation }: any) {
+  const { colors } = useTheme();
   const { grupoId, nombre } = route.params || {};
   const { members, loading, refreshMembers } = useAddGasto(grupoId);
   const [amount, setAmount] = useState<string>('');
@@ -20,7 +22,6 @@ export default function AddGasto({ route, navigation }: any) {
   }, [grupoId]);
 
   useEffect(() => {
-    // when members change (from viewmodel), initialize selection defaults
     const map: Record<string, boolean> = {};
     members.forEach((m: any) => { map[m.id] = true; });
     setSelectedIds(map);
@@ -36,7 +37,6 @@ export default function AddGasto({ route, navigation }: any) {
 
   const toggleParticipant = (id: string) => {
     setSelectedIds(prev => ({ ...prev, [id]: !prev[id] }));
-    // If payer was deselected, clear payer
     if (payerId === id && selectedIds[id]) {
       setPayerId(null);
     }
@@ -62,7 +62,6 @@ export default function AddGasto({ route, navigation }: any) {
     if (numericAmount <= 0) return Alert.alert('Monto inválido', 'Ingresá un monto válido');
     if (!payerId) return Alert.alert('Quien pagó', 'Seleccioná quien pagó');
     if (participantsCount === 0) return Alert.alert('Participantes', 'Seleccioná al menos un participante');
-    // Build division according to mode
     let division: Array<{ id: string; monto: number; percent?: number }> = [];
     if (divisionMode === 'equal') {
       division = participantList.map(p => ({ id: p.id, monto: parseFloat((equalShare).toFixed(2)), percent: parseFloat((100 / participantsCount).toFixed(2)) }));
@@ -98,7 +97,6 @@ export default function AddGasto({ route, navigation }: any) {
         const res = await gastosApi.createExpense(grupoId, body);
         console.log('createExpense response', res);
         Alert.alert('Hecho', 'Gasto creado');
-        // go back to group (and Gastos tab will refresh on focus)
         navigation.goBack();
       } catch (e: any) {
         console.error('createExpense error', e);
@@ -110,94 +108,120 @@ export default function AddGasto({ route, navigation }: any) {
 
   if (loading) {
     return (
-      <View style={styles.center}><ActivityIndicator size="large" color="#033E30" /></View>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Text style={styles.back}>{'‹'}</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Text style={[styles.back, { color: colors.text }]}>{'‹'}</Text>
+          </TouchableOpacity>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={styles.title}>Añadir Gasto</Text>
-            <Text style={styles.subtitle}>{nombre}</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Añadir Gasto</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{nombre}</Text>
           </View>
           <View style={{ width: 32 }} />
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Monto total</Text>
+        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+          <Text style={[styles.label, { color: colors.text }]}>Monto total</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.cardBackground, color: colors.text, borderColor: colors.borderLight }]}
             placeholder="$ 0"
+            placeholderTextColor={colors.textMuted}
             keyboardType="numeric"
             value={amount}
             onChangeText={setAmount}
           />
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Descripción</Text>
-          <TextInput style={[styles.input, { height: 80 }]} placeholder="Descripción" multiline value={description} onChangeText={setDescription} />
+          <Text style={[styles.label, { marginTop: 12, color: colors.text }]}>Descripción</Text>
+          <TextInput 
+            style={[styles.input, { height: 80, backgroundColor: colors.cardBackground, color: colors.text, borderColor: colors.borderLight }]} 
+            placeholder="Descripción" 
+            placeholderTextColor={colors.textMuted}
+            multiline 
+            value={description} 
+            onChangeText={setDescription} 
+          />
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>¿Quién pagó?</Text>
+        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+          <Text style={[styles.label, { color: colors.text }]}>¿Quién pagó?</Text>
           {members.map(m => (
             <TouchableOpacity key={m.id} style={styles.row} onPress={() => setPayerId(m.id)}>
-              <View style={[styles.radio, payerId === m.id && styles.radioSelected]} />
-              <Text style={{ marginLeft: 8 }}>{m.id === (members.find(x => x.firebase_uid === user?.uid)?.id) ? 'Tú' : (m.nombre || m.correo || 'Miembro')}</Text>
+              <View style={[styles.radio, { borderColor: colors.border }, payerId === m.id && { backgroundColor: colors.primary, borderColor: colors.primary }]} />
+              <Text style={{ marginLeft: 8, color: colors.text }}>{m.id === (members.find(x => x.firebase_uid === user?.uid)?.id) ? 'Tú' : (m.nombre || m.correo || 'Miembro')}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Participantes</Text>
+        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+          <Text style={[styles.label, { color: colors.text }]}>Participantes</Text>
           {members.map(m => (
             <TouchableOpacity key={m.id} style={styles.row} onPress={() => toggleParticipant(m.id)}>
-              <View style={[styles.checkbox, selectedIds[m.id] && styles.checkboxChecked]}>
+              <View style={[styles.checkbox, { borderColor: colors.border }, selectedIds[m.id] && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
                 {selectedIds[m.id] && <Text style={{ color: '#fff' }}>✓</Text>}
               </View>
-              <Text style={{ marginLeft: 8 }}>{m.nombre || m.correo || 'Miembro'}</Text>
+              <Text style={{ marginLeft: 8, color: colors.text }}>{m.nombre || m.correo || 'Miembro'}</Text>
             </TouchableOpacity>
           ))}
 
-          <TouchableOpacity style={styles.divideButton} onPress={handleDivideEqual}>
+          <TouchableOpacity style={[styles.divideButton, { backgroundColor: colors.primary }]} onPress={handleDivideEqual}>
             <Text style={{ color: '#fff', fontWeight: '700' }}>Dividir en partes iguales</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>División del gasto</Text>
+        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+          <Text style={[styles.label, { color: colors.text }]}>División del gasto</Text>
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-            <TouchableOpacity style={[styles.modeButton, divisionMode === 'equal' && styles.modeButtonActive]} onPress={() => setDivisionMode('equal')}>
-              <Text style={divisionMode === 'equal' ? styles.modeTextActive : styles.modeText}>Partes iguales</Text>
+            <TouchableOpacity style={[styles.modeButton, { backgroundColor: colors.cardBackground }, divisionMode === 'equal' && { backgroundColor: colors.primary }]} onPress={() => setDivisionMode('equal')}>
+              <Text style={divisionMode === 'equal' ? styles.modeTextActive : [styles.modeText, { color: colors.text }]}>Partes iguales</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.modeButton, divisionMode === 'custom-amount' && styles.modeButtonActive]} onPress={() => setDivisionMode('custom-amount')}>
-              <Text style={divisionMode === 'custom-amount' ? styles.modeTextActive : styles.modeText}>Por monto</Text>
+            <TouchableOpacity style={[styles.modeButton, { backgroundColor: colors.cardBackground }, divisionMode === 'custom-amount' && { backgroundColor: colors.primary }]} onPress={() => setDivisionMode('custom-amount')}>
+              <Text style={divisionMode === 'custom-amount' ? styles.modeTextActive : [styles.modeText, { color: colors.text }]}>Por monto</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.modeButton, divisionMode === 'custom-percent' && styles.modeButtonActive]} onPress={() => setDivisionMode('custom-percent')}>
-              <Text style={divisionMode === 'custom-percent' ? styles.modeTextActive : styles.modeText}>Por %</Text>
+            <TouchableOpacity style={[styles.modeButton, { backgroundColor: colors.cardBackground }, divisionMode === 'custom-percent' && { backgroundColor: colors.primary }]} onPress={() => setDivisionMode('custom-percent')}>
+              <Text style={divisionMode === 'custom-percent' ? styles.modeTextActive : [styles.modeText, { color: colors.text }]}>Por %</Text>
             </TouchableOpacity>
           </View>
 
           {participantList.length === 0 ? (
-            <Text style={{ color: '#666' }}>No hay participantes seleccionados</Text>
+            <Text style={{ color: colors.textMuted }}>No hay participantes seleccionados</Text>
           ) : (
             participantList.map(p => (
-              <View key={p.id} style={{ paddingVertical: 8, borderBottomWidth: 1, borderColor: '#f0f0f0' }}>
-                <Text style={{ fontWeight: '700' }}>{p.nombre || p.correo}</Text>
+              <View key={p.id} style={{ paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.borderLight }}>
+                <Text style={{ fontWeight: '700', color: colors.text }}>{p.nombre || p.correo}</Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, alignItems: 'center' }}>
                   {divisionMode === 'equal' && (
                     <>
-                      <Text>{(100 / participantsCount).toFixed(1)} %</Text>
-                      <Text>${(equalShare).toFixed(2)}</Text>
+                      <Text style={{ color: colors.text }}>{(100 / participantsCount).toFixed(1)} %</Text>
+                      <Text style={{ color: colors.text }}>${(equalShare).toFixed(2)}</Text>
                     </>
                   )}
                   {divisionMode === 'custom-amount' && (
-                    <TextInput style={styles.inputSmall} keyboardType="numeric" placeholder="$0.00" onChangeText={(v) => updateCustomAmount(p.id, v)} value={(customSplits[p.id]?.amount ?? '').toString()} />
+                    <TextInput 
+                      style={[styles.inputSmall, { backgroundColor: colors.cardBackground, color: colors.text, borderColor: colors.borderLight }]} 
+                      keyboardType="numeric" 
+                      placeholder="$0.00" 
+                      placeholderTextColor={colors.textMuted}
+                      onChangeText={(v) => updateCustomAmount(p.id, v)} 
+                      value={(customSplits[p.id]?.amount ?? '').toString()} 
+                    />
                   )}
                   {divisionMode === 'custom-percent' && (
-                    <TextInput style={styles.inputSmall} keyboardType="numeric" placeholder="0 %" onChangeText={(v) => updateCustomPercent(p.id, v)} value={(customSplits[p.id]?.percent ?? '').toString()} />
+                    <TextInput 
+                      style={[styles.inputSmall, { backgroundColor: colors.cardBackground, color: colors.text, borderColor: colors.borderLight }]} 
+                      keyboardType="numeric" 
+                      placeholder="0 %" 
+                      placeholderTextColor={colors.textMuted}
+                      onChangeText={(v) => updateCustomPercent(p.id, v)} 
+                      value={(customSplits[p.id]?.percent ?? '').toString()} 
+                    />
                   )}
                 </View>
               </View>
@@ -206,7 +230,7 @@ export default function AddGasto({ route, navigation }: any) {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.saveBar} onPress={handleSave}>
+      <TouchableOpacity style={[styles.saveBar, { backgroundColor: colors.primary }]} onPress={handleSave}>
         <Text style={{ color: '#fff', fontWeight: '700' }}>Guardar gasto</Text>
       </TouchableOpacity>
     </View>
@@ -214,25 +238,22 @@ export default function AddGasto({ route, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E6F4F1' },
+  container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  back: { fontSize: 28, color: '#033E30', width: 32 },
-  title: { fontSize: 18, fontWeight: '700', color: '#033E30' },
-  subtitle: { color: '#666', fontSize: 12 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 12 },
+  back: { fontSize: 28, width: 32 },
+  title: { fontSize: 18, fontWeight: '700' },
+  subtitle: { fontSize: 12 },
+  card: { borderRadius: 12, padding: 12, marginBottom: 12, borderWidth: 1 },
   label: { fontWeight: '700', marginBottom: 6 },
-  input: { backgroundColor: '#f6f9f6', padding: 8, borderRadius: 8 },
+  input: { padding: 8, borderRadius: 8, borderWidth: 1 },
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 1, borderColor: '#ccc' },
-  radioSelected: { backgroundColor: '#033E30', borderColor: '#033E30' },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, borderColor: '#ccc', alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { backgroundColor: '#033E30', borderColor: '#033E30' },
-  divideButton: { marginTop: 12, padding: 10, borderRadius: 8, backgroundColor: '#033E30', alignItems: 'center' },
-  saveBar: { backgroundColor: '#033E30', padding: 14, alignItems: 'center' },
-  modeButton: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#f2f7f4' },
-  modeButtonActive: { backgroundColor: '#033E30' },
-  modeText: { color: '#033E30', fontWeight: '700' },
+  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 1 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  divideButton: { marginTop: 12, padding: 10, borderRadius: 8, alignItems: 'center' },
+  saveBar: { padding: 14, alignItems: 'center' },
+  modeButton: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
+  modeText: { fontWeight: '700' },
   modeTextActive: { color: '#fff', fontWeight: '700' },
-  inputSmall: { backgroundColor: '#f6f9f6', padding: 6, borderRadius: 8, minWidth: 80, textAlign: 'right' },
+  inputSmall: { padding: 6, borderRadius: 8, minWidth: 80, textAlign: 'right', borderWidth: 1 },
 });

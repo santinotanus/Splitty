@@ -17,6 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { auth } from '../config/firebase';
 import { updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import * as ImagePicker from 'expo-image-picker';
@@ -25,6 +26,7 @@ import { updateUser, getCurrentUser, checkClaveAvailable } from '../api/client';
 export default function PantallaPerfil({ navigation }: any) {
   const { user, logout } = useAuth();
   const { profileImage, setProfileImage, uploadProfileImage, loadProfileImage, loading: profileLoading } = useProfile();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
@@ -299,23 +301,23 @@ export default function PantallaPerfil({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 16, backgroundColor: colors.modalBackground, borderBottomColor: colors.borderLight }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Feather name="arrow-left" size={24} color="#033E30" />
+          <Feather name="arrow-left" size={24} color={colors.iconColor} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Perfil</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Perfil</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Photo Section */}
         <View style={styles.photoSection}>
-          <View style={styles.photoContainer}>
+          <View style={[styles.photoContainer, { backgroundColor: colors.modalBackground, borderColor: colors.modalBackground }]}>
             {profileLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#033E30" />
+                <ActivityIndicator size="large" color={colors.primary} />
               </View>
             ) : (
               <Image 
@@ -329,77 +331,74 @@ export default function PantallaPerfil({ navigation }: any) {
             style={styles.changePhotoButton}
             disabled={profileLoading}
           >
-            <Feather name="edit-2" size={14} color="#033E30" />
-            <Text style={styles.changePhotoText}>Cambiar foto</Text>
+            <Feather name="edit-2" size={14} color={colors.primary} />
+            <Text style={[styles.changePhotoText, { color: colors.primary }]}>Cambiar foto</Text>
           </TouchableOpacity>
         </View>
 
         {/* Personal Information Section */}
-        <Text style={styles.sectionTitle}>Información personal</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Información personal</Text>
 
         {/* Full Name Card */}
-        <View style={styles.card}>
-          <View style={styles.cardIcon}>
-            <Feather name="user" size={20} color="#666" />
+        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+          <View style={[styles.cardIcon, { backgroundColor: colors.emojiCircle }]}>
+            <Feather name="user" size={20} color={colors.iconColor} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.cardLabel}>Nombre completo</Text>
-            <Text style={styles.cardValue}>{nombre}</Text>
+            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Nombre completo</Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>{nombre}</Text>
           </View>
           <TouchableOpacity onPress={handleEditName} style={styles.editButton}>
-            <Feather name="edit-2" size={18} color="#666" />
+            <Feather name="edit-2" size={18} color={colors.iconColor} />
           </TouchableOpacity>
         </View>
 
         {/* Email Card */}
-        <View style={styles.card}>
-          <View style={styles.cardIcon}>
-            <Feather name="mail" size={20} color="#666" />
+        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+          <View style={[styles.cardIcon, { backgroundColor: colors.emojiCircle }]}>
+            <Feather name="mail" size={20} color={colors.iconColor} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.cardLabel}>Correo electrónico</Text>
-            <Text style={styles.cardValue}>{email}</Text>
+            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Correo electrónico</Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>{email}</Text>
           </View>
-          <TouchableOpacity onPress={handleEditEmail} style={styles.editButton}>
-            <Feather name="edit-2" size={18} color="#666" />
-          </TouchableOpacity>
         </View>
 
         {/* Alias / CVU Card */}
-        <View style={styles.card}>
-          <View style={styles.cardIcon}>
-            <Feather name="hash" size={20} color="#666" />
+        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+          <View style={[styles.cardIcon, { backgroundColor: colors.emojiCircle }]}>
+            <Feather name="hash" size={20} color={colors.iconColor} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.cardLabel}>Alias / CVU</Text>
-            <Text style={styles.cardValue}>{clavePago || 'No establecido'}</Text>
+            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Alias / CVU</Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>{clavePago || 'No establecido'}</Text>
           </View>
           <TouchableOpacity onPress={handleEditClave} style={styles.editButton}>
-            <Feather name="edit-2" size={18} color="#666" />
+            <Feather name="edit-2" size={18} color={colors.iconColor} />
           </TouchableOpacity>
         </View>
 
         {/* Password Card */}
-        <View style={styles.card}>
-          <View style={styles.cardIcon}>
-            <Feather name="lock" size={20} color="#666" />
+        <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+          <View style={[styles.cardIcon, { backgroundColor: colors.emojiCircle }]}>
+            <Feather name="lock" size={20} color={colors.iconColor} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.cardLabel}>Contraseña</Text>
-            <Text style={styles.cardValue}>••••••••</Text>
+            <Text style={[styles.cardLabel, { color: colors.textSecondary }]}>Contraseña</Text>
+            <Text style={[styles.cardValue, { color: colors.text }]}>••••••••</Text>
           </View>
           <TouchableOpacity onPress={handleEditPassword} style={styles.editButton}>
-            <Feather name="edit-2" size={18} color="#666" />
+            <Feather name="edit-2" size={18} color={colors.iconColor} />
           </TouchableOpacity>
         </View>
 
         {/* Logout Button */}
         <TouchableOpacity 
-          style={styles.logoutButton}
+          style={[styles.logoutButton, { backgroundColor: colors.error }]}
           onPress={handleLogout}
         >
-          <Feather name="log-out" size={20} color="#fff" />
-          <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+          <Feather name="log-out" size={20} color={colors.primaryText} />
+          <Text style={[styles.logoutButtonText, { color: colors.primaryText }]}>Cerrar sesión</Text>
         </TouchableOpacity>
       </ScrollView>
 

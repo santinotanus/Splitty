@@ -14,6 +14,7 @@ import ConfiguracionGrupo from './src/screens/ConfiguracionGrupo';
 import MainTabs from './src/navigation/MainTabs';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ProfileProvider } from './src/contexts/ProfileContext';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 import EscanearAmigo from './src/screens/EscanearAmigo';
 import { api } from './src/api/client';
 
@@ -163,13 +164,15 @@ function AppNavigator() {
 }
 
 const App = () => (
-  <AuthProvider>
-    <ProfileProvider>
-      <NavigationContainer>
-        <AppNavigator />
-      </NavigationContainer>
-    </ProfileProvider>
-  </AuthProvider>
+  <ThemeProvider>
+    <AuthProvider>
+      <ProfileProvider>
+        <NavigationContainer>
+          <AppNavigator />
+        </NavigationContainer>
+      </ProfileProvider>
+    </AuthProvider>
+  </ThemeProvider>
 );
 
 const styles = StyleSheet.create({

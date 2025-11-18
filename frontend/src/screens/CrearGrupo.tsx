@@ -3,8 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityInd
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { useCrearGrupo } from '../viewmodels/useCrearGrupo';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function CrearGrupo({ navigation }: any) {
+  const { colors } = useTheme();
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [emoji, setEmoji] = useState('✈️');
@@ -75,21 +77,42 @@ export default function CrearGrupo({ navigation }: any) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Crear Grupo</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]}>Crear Grupo</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Información del grupo</Text>
-        <Text style={styles.label}>Nombre del grupo *</Text>
-        <TextInput style={styles.input} value={nombre} onChangeText={setNombre} placeholder="Ej: Viaje a Brasil 2026" />
+      <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Información del grupo</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Nombre del grupo *</Text>
+        <TextInput 
+          style={[styles.input, { backgroundColor: colors.cardBackground, borderColor: colors.borderLight, color: colors.text }]} 
+          value={nombre} 
+          onChangeText={setNombre} 
+          placeholder="Ej: Viaje a Brasil 2026"
+          placeholderTextColor={colors.textMuted}
+        />
 
-        <Text style={styles.label}>Descripción (opcional)</Text>
-        <TextInput style={[styles.input, { height: 100 }]} value={descripcion} onChangeText={setDescripcion} placeholder="Describe brevemente el propósito del grupo" multiline />
+        <Text style={[styles.label, { color: colors.text }]}>Descripción (opcional)</Text>
+        <TextInput 
+          style={[styles.input, { height: 100, backgroundColor: colors.cardBackground, borderColor: colors.borderLight, color: colors.text }]} 
+          value={descripcion} 
+          onChangeText={setDescripcion} 
+          placeholder="Describe brevemente el propósito del grupo" 
+          placeholderTextColor={colors.textMuted}
+          multiline 
+        />
 
-        <Text style={styles.label}>Emoji del grupo</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Emoji del grupo</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emojiRow}>
           {['✈️','🍖','🚗','🏖️','🎉','💼','🏠','🍹','🎂','🏕️','🚴‍♂️'].map((em) => (
-            <TouchableOpacity key={em} style={[styles.emojiButton, emoji === em && styles.emojiSelected]} onPress={() => setEmoji(em)}>
+            <TouchableOpacity 
+              key={em} 
+              style={[
+                styles.emojiButton, 
+                { backgroundColor: colors.cardBackground },
+                emoji === em && { backgroundColor: colors.emojiCircle }
+              ]} 
+              onPress={() => setEmoji(em)}
+            >
               <Text style={{ fontSize: 20 }}>{em}</Text>
             </TouchableOpacity>
           ))}
@@ -98,58 +121,77 @@ export default function CrearGrupo({ navigation }: any) {
 
       {/* Roles removed per request */}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Invitar miembros</Text>
-        <View style={styles.inviteTabs}>
-          <TouchableOpacity style={[styles.tab, inviteMode === 'link' && styles.tabActive]} onPress={() => setInviteMode('link')}>
-            <Text style={inviteMode === 'link' ? styles.tabTextActive : styles.tabText}>Link</Text>
+      <View style={[styles.card, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Invitar miembros</Text>
+        <View style={[styles.inviteTabs, { backgroundColor: colors.cardBackground }]}>
+          <TouchableOpacity 
+            style={[styles.tab, inviteMode === 'link' && { backgroundColor: colors.primary }]} 
+            onPress={() => setInviteMode('link')}
+          >
+            <Text style={inviteMode === 'link' ? [styles.tabTextActive, { color: colors.primaryText }] : [styles.tabText, { color: colors.text }]}>Link</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, inviteMode === 'qr' && styles.tabActive]} onPress={() => setInviteMode('qr')}>
-            <Text style={inviteMode === 'qr' ? styles.tabTextActive : styles.tabText}>Código QR</Text>
+          <TouchableOpacity 
+            style={[styles.tab, inviteMode === 'qr' && { backgroundColor: colors.primary }]} 
+            onPress={() => setInviteMode('qr')}
+          >
+            <Text style={inviteMode === 'qr' ? [styles.tabTextActive, { color: colors.primaryText }] : [styles.tabText, { color: colors.text }]}>Código QR</Text>
           </TouchableOpacity>
         </View>
 
         {inviteMode === 'link' ? (
           <>
-            <TextInput style={[styles.input, { marginTop: 8 }]} value={inviteUrl ?? ''} placeholder="El link de invitación aparecerá aquí" editable={false} />
+            <TextInput 
+              style={[styles.input, { marginTop: 8, backgroundColor: colors.cardBackground, borderColor: colors.borderLight, color: colors.text }]} 
+              value={inviteUrl ?? ''} 
+              placeholder="El link de invitación aparecerá aquí"
+              placeholderTextColor={colors.textMuted}
+              editable={false} 
+            />
             <View style={{ flexDirection: 'row', marginTop: 8, gap: 8 }}>
-              <TouchableOpacity style={[styles.button, { flex: 1 }]} onPress={handleShareInvite}>
-                <Text style={styles.buttonText}>Compartir link</Text>
+              <TouchableOpacity style={[styles.button, { flex: 1, backgroundColor: colors.primary }]} onPress={handleShareInvite}>
+                <Text style={[styles.buttonText, { color: colors.primaryText }]}>Compartir link</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, { flex: 1, backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6eee9' }]} onPress={handleCopyInvite}>
-                <Text style={[styles.buttonText, { color: '#033E30' }]}>Copiar</Text>
+              <TouchableOpacity 
+                style={[styles.button, { flex: 1, backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.borderLight }]} 
+                onPress={handleCopyInvite}
+              >
+                <Text style={[styles.buttonText, { color: colors.text }]}>Copiar</Text>
               </TouchableOpacity>
             </View>
           </>
         ) : (
           <View style={{ alignItems: 'center', padding: 12 }}>
             {inviteUrl ? (
-              <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#e6eee9' }}>
+              <View style={{ backgroundColor: colors.modalBackground, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: colors.borderLight }}>
                 <QRCode value={inviteUrl} size={160} />
               </View>
             ) : (
-              <View style={{ width: 160, height: 160, backgroundColor: '#fff', borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e6eee9' }}>
-                <Text style={{ color: '#666' }}>QR generado aquí</Text>
+              <View style={{ width: 160, height: 160, backgroundColor: colors.cardBackground, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderLight }}>
+                <Text style={{ color: colors.textMuted }}>QR generado aquí</Text>
               </View>
             )}
             <View style={{ flexDirection: 'row', marginTop: 12, gap: 8 }}>
-              <TouchableOpacity style={[styles.button, { flex: 1 }]} onPress={handleCopyInvite}>
-                <Text style={styles.buttonText}>Copiar link</Text>
+              <TouchableOpacity style={[styles.button, { flex: 1, backgroundColor: colors.primary }]} onPress={handleCopyInvite}>
+                <Text style={[styles.buttonText, { color: colors.primaryText }]}>Copiar link</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.button, { flex: 1 }]} onPress={handleShareInvite}>
-                <Text style={styles.buttonText}>Compartir QR</Text>
+              <TouchableOpacity style={[styles.button, { flex: 1, backgroundColor: colors.primary }]} onPress={handleShareInvite}>
+                <Text style={[styles.buttonText, { color: colors.primaryText }]}>Compartir QR</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       </View>
 
-      <TouchableOpacity style={[styles.button, loading && { opacity: 0.7 }]} onPress={handleCreate} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Crear Grupo</Text>}
+      <TouchableOpacity 
+        style={[styles.button, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]} 
+        onPress={handleCreate} 
+        disabled={loading}
+      >
+        {loading ? <ActivityIndicator color={colors.primaryText} /> : <Text style={[styles.buttonText, { color: colors.primaryText }]}>Crear Grupo</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={{ color: '#033E30' }}>Volver</Text>
+        <Text style={{ color: colors.primary }}>Volver</Text>
       </TouchableOpacity>
     </ScrollView>
   );

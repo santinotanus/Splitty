@@ -19,12 +19,11 @@ import { useAmigos } from '../viewmodels/useAmigos';
 
 // 🔐 Ajustá este import según tu proyecto (ej. src/contexts/AuthContext)
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
-const PRIMARY = '#0A4930';
-const BG = '#E6F4F1';
-const CARD = '#FFFFFF';
-
-export default function Amigos({ navigation }: any) {
+const Amigos = ({ navigation }: any) => {
+    const { colors } = useTheme();
+    
     const {
         friends,
         loading,
@@ -35,8 +34,8 @@ export default function Amigos({ navigation }: any) {
         pendingLoading,
         acceptPending,
         rejectPending,
-        removeFriend, // 🟢 Función para eliminar
-        refresh,      // 🟢 Función para recargar todo
+        removeFriend,
+        refresh,
     } = useAmigos();
 
     // Usuario logueado
@@ -130,25 +129,24 @@ export default function Amigos({ navigation }: any) {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Header navigation={navigation} variant="amigos" />
 
             {/* Estado de carga inicial (solo si no estamos refrescando) */}
             {loading && !refreshing ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color={PRIMARY} />
+                    <ActivityIndicator size="large" color={colors.primary} />
                 </View>
             ) : error ? (
-                // Si hay error, permitimos refrescar para reintentar
                 <ScrollView
                     contentContainerStyle={styles.center}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[PRIMARY]} />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
                     }
                 >
-                    <Text style={styles.errorText}>{error}</Text>
+                    <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
                     <TouchableOpacity onPress={onRefresh} style={{ marginTop: 12 }}>
-                         <Text style={{ color: PRIMARY, fontWeight: 'bold' }}>Toca para reintentar</Text>
+                         <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Toca para reintentar</Text>
                     </TouchableOpacity>
                 </ScrollView>
             ) : (
@@ -158,42 +156,42 @@ export default function Amigos({ navigation }: any) {
                         <RefreshControl
                             refreshing={refreshing}
                             onRefresh={onRefresh}
-                            colors={[PRIMARY]}
-                            tintColor={PRIMARY}
+                            colors={[colors.primary]}
+                            tintColor={colors.primary}
                         />
                     }
                 >
                     {/* SECCIÓN 1: Solicitudes Recibidas */}
                     {pendingLoading && !refreshing ? (
                         <View style={{ paddingVertical: 12 }}>
-                            <ActivityIndicator color={PRIMARY} />
+                            <ActivityIndicator color={colors.primary} />
                         </View>
                     ) : (
                         pendingRequests.length > 0 && (
                             <View style={{ marginBottom: 16 }}>
-                                <Text style={styles.sectionTitle}>Solicitudes recibidas</Text>
+                                <Text style={[styles.sectionTitle, { color: colors.text }]}>Solicitudes recibidas</Text>
                                 {pendingRequests.map((s: any) => (
-                                    <View key={s.id} style={styles.requestCard}>
+                                    <View key={s.id} style={[styles.requestCard, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
                                         <View style={{ flex: 1 }}>
-                                            <Text style={{ fontWeight: '600' }}>
+                                            <Text style={{ fontWeight: '600', color: colors.text }}>
                                                 {s.solicitanteNombre || 'Usuario'}
                                             </Text>
-                                            <Text style={{ color: '#666' }}>
+                                            <Text style={{ color: colors.textSecondary }}>
                                                 {s.solicitanteCorreo || ''}
                                             </Text>
                                         </View>
                                         <View style={{ flexDirection: 'row', gap: 8 }}>
                                             <TouchableOpacity
-                                                style={styles.acceptButton}
+                                                style={[styles.acceptButton, { backgroundColor: colors.primary }]}
                                                 onPress={() => acceptPending(s.id)}
                                             >
                                                 <Text style={{ color: '#FFF' }}>Aceptar</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity
-                                                style={styles.rejectButton}
+                                                style={[styles.rejectButton, { backgroundColor: colors.cardBackground }]}
                                                 onPress={() => rejectPending(s.id)}
                                             >
-                                                <Text style={{ color: '#333' }}>Rechazar</Text>
+                                                <Text style={{ color: colors.text }}>Rechazar</Text>
                                             </TouchableOpacity>
                                         </View>
                                     </View>
@@ -204,7 +202,7 @@ export default function Amigos({ navigation }: any) {
 
                     {/* SECCIÓN 2: Botones de Acción */}
                     <TouchableOpacity
-                        style={styles.primaryButton}
+                        style={[styles.primaryButton, { backgroundColor: colors.primary }]}
                         onPress={() => setMyQRVisible(true)}
                     >
                         <MaterialCommunityIcons
@@ -217,33 +215,33 @@ export default function Amigos({ navigation }: any) {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.secondaryButton}
+                        style={[styles.secondaryButton, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}
                         onPress={() => setAddFriendVisible(true)}
                     >
                         <Ionicons
                             name="person-add-outline"
                             size={18}
-                            color="#2E3D37"
+                            color={colors.text}
                             style={{ marginRight: 8 }}
                         />
-                        <Text style={styles.secondaryButtonText}>Agregar amigo</Text>
+                        <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Agregar amigo</Text>
                     </TouchableOpacity>
 
                     {/* SECCIÓN 3: Lista de Amigos */}
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Mis amigos</Text>
-                        <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{friends.length} amigos</Text>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Mis amigos</Text>
+                        <View style={[styles.badge, { backgroundColor: colors.badgeBackground }]}>
+                            <Text style={[styles.badgeText, { color: colors.badgeText }]}>{friends.length} amigos</Text>
                         </View>
                     </View>
 
                     {friends.map((friend: any) => (
-                        <View key={friend.id} style={styles.friendCard}>
+                        <View key={friend.id} style={[styles.friendCard, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
                             <View style={styles.friendRow}>
                                 <View style={styles.friendLeft}>
                                     <View style={styles.friendAvatarWrapper}>
-                                        <View style={styles.avatarCircleSmall}>
-                                            <Text style={styles.avatarInitialSmall}>
+                                        <View style={[styles.avatarCircleSmall, { backgroundColor: colors.emojiCircle }]}>
+                                            <Text style={[styles.avatarInitialSmall, { color: colors.text }]}>
                                                 {(friend.name || '?').charAt(0).toUpperCase()}
                                             </Text>
                                         </View>
@@ -251,15 +249,15 @@ export default function Amigos({ navigation }: any) {
                                     </View>
 
                                     <View>
-                                        <Text style={styles.friendName}>{friend.name}</Text>
-                                        <Text style={styles.friendSubtitle}>
+                                        <Text style={[styles.friendName, { color: colors.text }]}>{friend.name}</Text>
+                                        <Text style={[styles.friendSubtitle, { color: colors.textSecondary }]}>
                                             {friend.groupsInCommon} grupo
                                             {friend.groupsInCommon !== 1 && 's'} en común
                                         </Text>
                                         {friend.groupsNames && friend.groupsNames.length > 0 && (
                                             <Text
                                                 style={{
-                                                    color: '#8A9A92',
+                                                    color: colors.textMuted,
                                                     marginTop: 4,
                                                     fontSize: 12,
                                                 }}
@@ -272,14 +270,14 @@ export default function Amigos({ navigation }: any) {
 
                                 {/* Botón Eliminar */}
                                 <TouchableOpacity onPress={() => confirmDeleteFriend(friend)} style={{ padding: 8 }}>
-                                    <Ionicons name="trash-outline" size={20} color="#A1A8AA" />
+                                    <Ionicons name="trash-outline" size={20} color={colors.iconColor} />
                                 </TouchableOpacity>
                             </View>
                         </View>
                     ))}
 
                     {friends.length === 0 && (
-                        <Text style={styles.emptyFilteredText}>
+                        <Text style={[styles.emptyFilteredText, { color: colors.textMuted }]}>
                             Todavía no tenés amigos agregados.
                         </Text>
                     )}
@@ -296,27 +294,27 @@ export default function Amigos({ navigation }: any) {
                 <TouchableWithoutFeedback onPress={() => setAddFriendVisible(false)}>
                     <View style={styles.modalOverlay}>
                         <TouchableWithoutFeedback>
-                            <View style={styles.addFriendCard}>
+                            <View style={[styles.addFriendCard, { backgroundColor: colors.modalBackground }]}>
                                 <View style={styles.addFriendHeader}>
-                                    <Text style={styles.addFriendTitle}>Agregar amigo</Text>
+                                    <Text style={[styles.addFriendTitle, { color: colors.text }]}>Agregar amigo</Text>
                                     <TouchableOpacity
                                         onPress={() => setAddFriendVisible(false)}
                                     >
-                                        <Ionicons name="close" size={20} color="#666" />
+                                        <Ionicons name="close" size={20} color={colors.iconColor} />
                                     </TouchableOpacity>
                                 </View>
 
-                                <View style={styles.searchInputWrapper}>
+                                <View style={[styles.searchInputWrapper, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}>
                                     <Ionicons
                                         name="search"
                                         size={18}
-                                        color="#A0A7A3"
+                                        color={colors.iconColor}
                                         style={{ marginRight: 8 }}
                                     />
                                     <TextInput
-                                        style={styles.searchInput}
+                                        style={[styles.searchInput, { color: colors.text }]}
                                         placeholder="Ingresar correo o ID del amigo..."
-                                        placeholderTextColor="#A0A7A3"
+                                        placeholderTextColor={colors.textMuted}
                                         value={friendIdToAdd}
                                         onChangeText={setFriendIdToAdd}
                                         autoCapitalize="none"
@@ -325,20 +323,20 @@ export default function Amigos({ navigation }: any) {
 
                                 <View style={styles.addFriendButtonsRow}>
                                     <TouchableOpacity
-                                        style={styles.scanButton}
+                                        style={[styles.scanButton, { backgroundColor: colors.cardBackground }]}
                                         onPress={handleScanQR} // 🟢 CONECTADO AL ESCÁNER
                                     >
                                         <Ionicons
                                             name="qr-code-outline"
                                             size={18}
-                                            color="#2E3D37"
+                                            color={colors.text}
                                             style={{ marginRight: 6 }}
                                         />
-                                        <Text style={styles.scanButtonText}>Escanear QR</Text>
+                                        <Text style={[styles.scanButtonText, { color: colors.text }]}>Escanear QR</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        style={styles.confirmAddButton}
+                                        style={[styles.confirmAddButton, { backgroundColor: colors.primary }]}
                                         onPress={handleAddFriend}
                                     >
                                         <Text style={styles.confirmAddButtonText}>Agregar</Text>
@@ -360,31 +358,31 @@ export default function Amigos({ navigation }: any) {
                 <TouchableWithoutFeedback onPress={() => setMyQRVisible(false)}>
                     <View style={styles.modalOverlay}>
                         <TouchableWithoutFeedback>
-                            <View style={styles.qrCard}>
+                            <View style={[styles.qrCard, { backgroundColor: colors.modalBackground }]}>
                                 <View style={styles.qrHeader}>
-                                    <Text style={styles.addFriendTitle}>Mi código QR</Text>
+                                    <Text style={[styles.addFriendTitle, { color: colors.text }]}>Mi código QR</Text>
                                     <TouchableOpacity onPress={() => setMyQRVisible(false)}>
-                                        <Ionicons name="close" size={20} color="#666" />
+                                        <Ionicons name="close" size={20} color={colors.iconColor} />
                                     </TouchableOpacity>
                                 </View>
 
-                                <View style={styles.qrPlaceholder}>
+                                <View style={[styles.qrPlaceholder, { backgroundColor: colors.cardBackground }]}>
                                     {qrValue ? (
                                         <QRCode value={qrValue} size={140} />
                                     ) : (
                                         <MaterialCommunityIcons
                                             name="qrcode"
                                             size={64}
-                                            color="#A0A7A3"
+                                            color={colors.iconColor}
                                         />
                                     )}
                                 </View>
 
-                                <Text style={styles.qrUserName}>
+                                <Text style={[styles.qrUserName, { color: colors.text }]}>
                                     {user?.displayName || user?.email || 'Tu Usuario'}
                                 </Text>
 
-                                <Text style={styles.qrHelpText}>
+                                <Text style={[styles.qrHelpText, { color: colors.textSecondary }]}>
                                     Comparte este código para que otros puedan agregarte como
                                     amigo
                                 </Text>
@@ -400,7 +398,6 @@ export default function Amigos({ navigation }: any) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: BG,
     },
     scrollContent: {
         paddingHorizontal: 16,
@@ -413,17 +410,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    errorText: {
-        color: '#B00020',
-    },
+    errorText: {},
     emptyFilteredText: {
         textAlign: 'center',
-        color: '#666',
         marginTop: 16,
     },
 
     primaryButton: {
-        backgroundColor: PRIMARY,
         borderRadius: 14,
         paddingVertical: 14,
         paddingHorizontal: 16,
@@ -437,16 +430,15 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     secondaryButton: {
-        backgroundColor: CARD,
         borderRadius: 14,
         paddingVertical: 12,
         paddingHorizontal: 16,
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 24,
+        borderWidth: 1,
     },
     secondaryButtonText: {
-        color: '#2E3D37',
         fontSize: 15,
         fontWeight: '500',
     },
@@ -460,25 +452,22 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#1E2B26',
     },
     badge: {
-        backgroundColor: '#DDE8E2',
         borderRadius: 999,
         paddingVertical: 4,
         paddingHorizontal: 10,
     },
     badgeText: {
         fontSize: 12,
-        color: '#4C5A54',
     },
 
     friendCard: {
-        backgroundColor: CARD,
         borderRadius: 18,
         paddingHorizontal: 14,
         paddingVertical: 12,
         marginBottom: 12,
+        borderWidth: 1,
     },
     friendRow: {
         flexDirection: 'row',
@@ -498,12 +487,10 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#C5DAD1',
         alignItems: 'center',
         justifyContent: 'center',
     },
     avatarInitialSmall: {
-        color: '#1E2B26',
         fontWeight: '700',
     },
     onlineDot: {
@@ -515,16 +502,14 @@ const styles = StyleSheet.create({
         borderRadius: 5,
         backgroundColor: '#1ECD4E',
         borderWidth: 2,
-        borderColor: CARD,
+        borderColor: '#FFFFFF',
     },
     friendName: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#1E2B26',
     },
     friendSubtitle: {
         fontSize: 13,
-        color: '#5F6C68',
         marginTop: 2,
     },
 
@@ -537,7 +522,6 @@ const styles = StyleSheet.create({
     },
     addFriendCard: {
         width: '100%',
-        backgroundColor: '#FFFFFF',
         borderRadius: 18,
         paddingHorizontal: 16,
         paddingVertical: 16,
@@ -551,14 +535,12 @@ const styles = StyleSheet.create({
     addFriendTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1E2B26',
     },
     searchInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#D7E0DB',
         paddingHorizontal: 12,
         paddingVertical: 8,
         marginBottom: 12,
@@ -566,7 +548,6 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         fontSize: 14,
-        color: '#1E2B26',
     },
     addFriendButtonsRow: {
         flexDirection: 'row',
@@ -576,7 +557,6 @@ const styles = StyleSheet.create({
     scanButton: {
         flex: 1,
         marginRight: 8,
-        backgroundColor: '#F2F5F3',
         borderRadius: 10,
         paddingVertical: 10,
         paddingHorizontal: 10,
@@ -585,14 +565,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     scanButtonText: {
-        color: '#2E3D37',
         fontWeight: '500',
         fontSize: 14,
     },
     confirmAddButton: {
         flex: 1,
         marginLeft: 8,
-        backgroundColor: '#5E7E71',
         borderRadius: 10,
         paddingVertical: 10,
         alignItems: 'center',
@@ -606,7 +584,6 @@ const styles = StyleSheet.create({
 
     qrCard: {
         width: '100%',
-        backgroundColor: '#FFFFFF',
         borderRadius: 18,
         paddingHorizontal: 16,
         paddingVertical: 20,
@@ -623,7 +600,6 @@ const styles = StyleSheet.create({
         width: 160,
         height: 160,
         borderRadius: 16,
-        backgroundColor: '#F3F5F4',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,
@@ -631,29 +607,21 @@ const styles = StyleSheet.create({
     qrUserName: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1E2B26',
         marginBottom: 4,
-    },
-    qrUserId: {
-        fontSize: 14,
-        color: '#5F6C68',
-        marginBottom: 8,
     },
     qrHelpText: {
         fontSize: 13,
-        color: '#7B8682',
         textAlign: 'center',
     },
     requestCard: {
-        backgroundColor: CARD,
         borderRadius: 12,
         padding: 12,
         marginBottom: 8,
         flexDirection: 'row',
         alignItems: 'center',
+        borderWidth: 1,
     },
     acceptButton: {
-        backgroundColor: PRIMARY,
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 8,
@@ -662,7 +630,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     rejectButton: {
-        backgroundColor: '#F2F5F3',
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 8,
@@ -670,3 +637,5 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
 });
+
+export default Amigos;

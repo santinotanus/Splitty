@@ -13,9 +13,11 @@ import {
 } from 'react-native';
 import Header from '../components/Header';
 import { useInicio } from '../viewmodels/useInicio';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Inicio({ navigation }: any) {
     const { groups, loading, error, refresh } = useInicio();
+    const { colors } = useTheme();
     const [optionsVisible, setOptionsVisible] = React.useState(false);
 
     const totalBalance = useMemo(() => {
@@ -39,15 +41,15 @@ export default function Inicio({ navigation }: any) {
             {/* Ícono de personas en círculos */}
             <View style={styles.emptyIconContainer}>
                 <View style={styles.emptyIcon}>
-                    <View style={styles.personCircle1} />
-                    <View style={styles.personCircle2} />
-                    <View style={styles.personCircle3} />
+                    <View style={[styles.personCircle1, { backgroundColor: colors.emojiCircle }]} />
+                    <View style={[styles.personCircle2, { backgroundColor: colors.emojiCircle, opacity: 0.7 }]} />
+                    <View style={[styles.personCircle3, { backgroundColor: colors.emojiCircle, opacity: 0.5 }]} />
                 </View>
             </View>
 
             {/* Título y descripción */}
-            <Text style={styles.emptyTitle}>Sin grupos aún</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>Sin grupos aún</Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
                 Todavía no sos parte de ningún grupo.{'\n'}
                 Unite a uno existente o creá el tuyo propio.
             </Text>
@@ -55,42 +57,42 @@ export default function Inicio({ navigation }: any) {
             {/* Botones de acción */}
             <View style={styles.emptyButtonsContainer}>
                 <TouchableOpacity
-                    style={styles.createButton}
+                    style={[styles.createButton, { backgroundColor: colors.primary }]}
                     onPress={() => navigation.navigate('CrearGrupo')}
                 >
-                    <Text style={styles.createButtonText}>Crear Grupo</Text>
+                    <Text style={[styles.createButtonText, { color: colors.primaryText }]}>Crear Grupo</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={styles.joinButton}
+                    style={[styles.joinButton, { backgroundColor: colors.modalBackground, borderColor: colors.border }]}
                     onPress={() => navigation.navigate('UnirseGrupo')}
                 >
-                    <Text style={styles.joinButtonText}>Unirse a un Grupo</Text>
+                    <Text style={[styles.joinButtonText, { color: colors.text }]}>Unirse a un Grupo</Text>
                 </TouchableOpacity>
             </View>
         </View>
     );
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
             <Header navigation={navigation} balance={totalBalance} />
 
             {loading ? (
                 <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#033E30" />
+                    <ActivityIndicator size="large" color={colors.primary} />
                 </View>
             ) : error ? (
                 <View style={styles.center}>
-                    <Text style={styles.errorText}>{error}</Text>
+                    <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
                 </View>
             ) : groups.length === 0 ? (
                 renderEmpty()
             ) : (
                 <View style={{ flex: 1 }}>
                     <View style={styles.groupsHeaderRow}>
-                        <Text style={styles.groupsHeaderTitle}>Tus grupos</Text>
-                        <View style={styles.groupsHeaderBadge}>
-                            <Text style={styles.groupsHeaderBadgeText}>
+                        <Text style={[styles.groupsHeaderTitle, { color: colors.text }]}>Tus grupos</Text>
+                        <View style={[styles.groupsHeaderBadge, { backgroundColor: colors.badgeBackground }]}>
+                            <Text style={[styles.groupsHeaderBadgeText, { color: colors.badgeText }]}>
                                 {groups.length} activo{groups.length !== 1 ? 's' : ''}
                             </Text>
                         </View>
@@ -112,7 +114,7 @@ export default function Inicio({ navigation }: any) {
 
                             return (
                                 <TouchableOpacity
-                                    style={styles.groupCard}
+                                    style={[styles.groupCard, { backgroundColor: colors.cardBackground }]}
                                     onPress={() =>
                                         navigation.navigate('Grupo', {
                                             grupoId: item.id,
@@ -122,16 +124,16 @@ export default function Inicio({ navigation }: any) {
                                     }
                                 >
                                     <View style={styles.groupLeft}>
-                                        <View style={styles.emojiCircle}>
+                                        <View style={[styles.emojiCircle, { backgroundColor: colors.emojiCircle }]}>
                                             <Text style={styles.emojiText}>
                                                 {item.emoji || '✈️'}
                                             </Text>
                                         </View>
                                         <View style={{ marginLeft: 12, flex: 1 }}>
-                                            <Text style={styles.groupName}>
+                                            <Text style={[styles.groupName, { color: colors.text }]}>
                                                 {item.nombre || item.name}
                                             </Text>
-                                            <Text style={styles.groupSubtitle}>
+                                            <Text style={[styles.groupSubtitle, { color: colors.textSecondary }]}>
                                                 {membersCount} miembros • {item.descripcion || 'Sin descripción'}
                                             </Text>
                                         </View>
@@ -150,10 +152,10 @@ export default function Inicio({ navigation }: any) {
 
             {/* Floating + button */}
             <TouchableOpacity
-                style={styles.fab}
+                style={[styles.fab, { backgroundColor: colors.primary }]}
                 onPress={() => setOptionsVisible(true)}
             >
-                <Text style={{ color: '#fff', fontSize: 28 }}>+</Text>
+                <Text style={{ color: colors.primaryText, fontSize: 28 }}>+</Text>
             </TouchableOpacity>
 
             {/* Options bottom modal */}
@@ -164,25 +166,25 @@ export default function Inicio({ navigation }: any) {
                     onPress={() => setOptionsVisible(false)}
                 >
                     <TouchableWithoutFeedback>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>¿Qué querés hacer?</Text>
+                        <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>¿Qué querés hacer?</Text>
                             <TouchableOpacity
-                                style={styles.modalButton}
+                                style={[styles.modalButton, { backgroundColor: colors.primary }]}
                                 onPress={() => {
                                     setOptionsVisible(false);
                                     navigation.navigate('CrearGrupo');
                                 }}
                             >
-                                <Text style={styles.modalButtonText}>Crear Grupo</Text>
+                                <Text style={[styles.modalButtonText, { color: colors.primaryText }]}>Crear Grupo</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e6eee9' }]}
+                                style={[styles.modalButton, { backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.borderLight }]}
                                 onPress={() => {
                                     setOptionsVisible(false);
                                     navigation.navigate('UnirseGrupo');
                                 }}
                             >
-                                <Text style={[styles.modalButtonText, { color: '#033E30' }]}>
+                                <Text style={[styles.modalButtonText, { color: colors.text }]}>
                                     Unirse a un Grupo
                                 </Text>
                             </TouchableOpacity>
@@ -190,7 +192,7 @@ export default function Inicio({ navigation }: any) {
                                 style={{ marginTop: 12, alignItems: 'center' }}
                                 onPress={() => setOptionsVisible(false)}
                             >
-                                <Text style={{ color: '#666' }}>Cancelar</Text>
+                                <Text style={{ color: colors.textMuted }}>Cancelar</Text>
                             </TouchableOpacity>
                         </View>
                     </TouchableWithoutFeedback>

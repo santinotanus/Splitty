@@ -5,6 +5,7 @@ import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface HeaderProps {
     navigation: any;
@@ -19,6 +20,7 @@ export default function Header({
                                }: HeaderProps) {
     const { user } = useAuth();
     const { profileImage, loadProfileImage } = useProfile();
+    const { theme, toggleTheme, colors } = useTheme();
     const insets = useSafeAreaInsets();
 
     const balanceFormatted = Math.abs(balance).toFixed(2);
@@ -36,19 +38,19 @@ export default function Header({
     }, [user?.uid, loadProfileImage]);
 
     return (
-        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 12, backgroundColor: colors.headerBackground }]}>
             {/* Zona izquierda: cambia según el modo */}
             <View style={styles.balanceSection}>
                 {isInicio && (
                     <>
-                        <Text style={styles.balanceLabel}>Tu balance</Text>
+                        <Text style={[styles.balanceLabel, { color: colors.textMuted }]}>Tu balance</Text>
                         <View style={styles.balanceRow}>
                             <Text style={[styles.balanceAmount, { color: balanceColor }]}>
                                 {balanceSign}${balanceFormatted}
                             </Text>
                             {isPositive && (
-                                <View style={styles.balanceBadge}>
-                                    <Text style={styles.balanceBadgeText}>A favor</Text>
+                                <View style={[styles.balanceBadge, { backgroundColor: colors.balanceBadgeBackground }]}>
+                                    <Text style={[styles.balanceBadgeText, { color: colors.balanceBadgeText }]}>A favor</Text>
                                 </View>
                             )}
                         </View>
@@ -57,8 +59,8 @@ export default function Header({
 
                 {isAmigos && (
                     <>
-                        <Text style={styles.screenTitle}>Amigos</Text>
-                        <Text style={styles.screenSubtitle}>Gestiona tus contactos</Text>
+                        <Text style={[styles.screenTitle, { color: colors.text }]}>Amigos</Text>
+                        <Text style={[styles.screenSubtitle, { color: colors.textSecondary }]}>Gestiona tus contactos</Text>
                     </>
                 )}
             </View>
@@ -67,11 +69,13 @@ export default function Header({
             <View style={styles.rightSection}>
                 <TouchableOpacity
                     style={styles.iconButton}
-                    onPress={() => {
-                        // TODO: toggle de tema
-                    }}
+                    onPress={toggleTheme}
                 >
-                    <Feather name="sun" size={20} color="#666" />
+                    <Feather 
+                        name={theme === 'light' ? 'sun' : 'moon'} 
+                        size={20} 
+                        color={colors.iconColor} 
+                    />
                 </TouchableOpacity>
 
                 <TouchableOpacity

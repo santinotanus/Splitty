@@ -86,7 +86,7 @@ export async function listMembers(grupoId: string) {
   return db('dbo.miembros_grupo as m')
     .join('dbo.usuarios as u', 'u.id', 'm.usuario_id')
     .where('m.grupo_id', grupoId)
-    .select('u.id', 'u.firebase_uid', 'u.nombre', 'u.correo', 'm.rol', 'm.fecha_creacion')
+    .select('u.id', 'u.firebase_uid', 'u.nombre', 'u.correo', 'm.rol', 'm.fecha_creacion', 'u.foto_url')
     .orderBy('m.fecha_creacion', 'asc');
 }
 

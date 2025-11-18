@@ -9,7 +9,8 @@ import {
   Modal,
   Alert,
   TouchableOpacity as RNTouchableOpacity,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  Image
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useGrupo } from '../viewmodels/useGrupo';
@@ -116,6 +117,22 @@ export default function Grupo({ route, navigation }: any) {
     });
   };
 
+  const handleAddExpensePress = () => {
+    if (membersCount <= 1) {
+      Alert.alert(
+        'Necesitás más miembros',
+        'Debés tener al menos 2 miembros en el grupo para crear un gasto. ¿Querés invitar a alguien?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Invitar', onPress: handleInvite }
+        ]
+      );
+    } else {
+      setOptionsVisible(false);
+      navigation.navigate('AddGasto', { grupoId, nombre });
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -149,14 +166,25 @@ export default function Grupo({ route, navigation }: any) {
             {members.map((m: any) => {
               const balance = m.balance || 0;
               const isPositive = balance >= 0;
+              const memberPhoto = m.foto_url || null;
+              const memberName = m.nombre || m.correo || 'U';
 
               return (
                 <View key={m.id} style={{ alignItems: 'center', width: 80 }}>
-                  <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
-                    <Text style={{ color: colors.primaryText, fontWeight: '700', fontSize: 16 }}>
-                      {(m.nombre || m.correo || 'U').charAt(0).toUpperCase()}
-                    </Text>
-                  </View>
+                  {/* Avatar con foto o inicial */}
+                  {memberPhoto ? (
+                    <Image
+                      source={{ uri: memberPhoto }}
+                      style={[styles.avatarCircle, { backgroundColor: colors.borderLight }]}
+                    />
+                  ) : (
+                    <View style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+                      <Text style={{ color: colors.primaryText, fontWeight: '700', fontSize: 16 }}>
+                        {memberName.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+
                   <Text
                     style={{
                       marginTop: 6,
@@ -167,7 +195,7 @@ export default function Grupo({ route, navigation }: any) {
                     }}
                     numberOfLines={1}
                   >
-                    {m.nombre || m.correo}
+                    {memberName}
                   </Text>
                   <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
                     Pagó ${(m.totalPagado || 0).toFixed(2)}
@@ -236,7 +264,10 @@ export default function Grupo({ route, navigation }: any) {
                 No hay gastos en este grupo
               </Text>
               <Text style={{ color: colors.textMuted, marginTop: 8, textAlign: 'center', fontSize: 14 }}>
-                Presiona el botón + para agregar el primer gasto
+                {membersCount <= 1
+                  ? 'Invitá a alguien al grupo para empezar a registrar gastos'
+                  : 'Presiona el botón + para agregar el primer gasto'
+                }
               </Text>
             </View>
           ) : (
@@ -363,16 +394,22 @@ export default function Grupo({ route, navigation }: any) {
               <Text style={[styles.modalTitle, { color: colors.text }]}>¿Qué querés hacer?</Text>
 
               <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: colors.primary }, membersCount === 0 && { opacity: 0.5 }]}
-                disabled={membersCount === 0}
-                onPress={() => {
-                  setOptionsVisible(false);
-                  navigation.navigate('AddGasto', { grupoId, nombre });
-                }}
+                style={[
+                  styles.modalButton,
+                  { backgroundColor: colors.primary },
+                  membersCount <= 1 && { opacity: 0.5 }
+                ]}
+                onPress={handleAddExpensePress}
               >
                 <Feather name="plus-circle" size={20} color={colors.primaryText} style={{ marginRight: 8 }} />
                 <Text style={[styles.modalButtonText, { color: colors.primaryText }]}>Añadir Gasto</Text>
               </TouchableOpacity>
+
+              {membersCount <= 1 && (
+                <Text style={[styles.warningText, { color: colors.textMuted }]}>
+                  Necesitás al menos 2 miembros para crear gastos
+                </Text>
+              )}
 
               <TouchableOpacity
                 style={[styles.modalButtonSecondary, { backgroundColor: colors.cardBackground, borderColor: colors.borderLight }]}
@@ -623,53 +660,60 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    },
-      modalBackdrop: {
-        flex: 1,
-        justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0,0,0,0.5)'
-      },
-      modalContent: {
-        backgroundColor: '#fff',
-        padding: 20,
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        paddingBottom: 40,
-      },
-      modalTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 16,
-        color: '#033E30',
-      },
-      modalButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#033E30',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
-      },
-      modalButtonText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 16,
-      },
-      modalButtonSecondary: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#e6eee9'
-      },
-      modalButtonTextSecondary: {
-        color: '#033E30',
-        fontWeight: '700',
-        fontSize: 16,
-      },
-    });
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)'
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    color: '#033E30',
+  },
+  modalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#033E30',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  modalButtonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e6eee9'
+  },
+  modalButtonTextSecondary: {
+    color: '#033E30',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  warningText: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: -8,
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+});

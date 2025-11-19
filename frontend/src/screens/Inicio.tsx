@@ -8,16 +8,18 @@ import {
     FlatList,
     TouchableOpacity,
     Modal,
-    TouchableOpacity as RNTouchableOpacity,
     TouchableWithoutFeedback,
 } from 'react-native';
 import Header from '../components/Header';
+import OfflineBanner from '../components/OfflineBanner';
+import { useOfflineGuard } from '../hooks/useOfflineGuard';
 import { useInicio } from '../viewmodels/useInicio';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function Inicio({ navigation }: any) {
     const { groups, loading, error, refresh } = useInicio();
     const { colors } = useTheme();
+    const { isOnline, guardOnlineAction } = useOfflineGuard();
     const [optionsVisible, setOptionsVisible] = React.useState(false);
 
     const totalBalance = useMemo(() => {
@@ -75,6 +77,7 @@ export default function Inicio({ navigation }: any) {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
+            <OfflineBanner />
             <Header navigation={navigation} balance={totalBalance} />
 
             {loading ? (
@@ -143,61 +146,54 @@ export default function Inicio({ navigation }: any) {
                                             {balanceSign}${Math.abs(Number(balance)).toFixed(2)}
                                         </Text>
                                     </View>
+                                    </TouchableOpacity>
+                                );
+                            }}
+                        />
+
+                        {/* Floating + button */}
+                                <TouchableOpacity
+                                    style={[styles.fab, { backgroundColor: colors.primary }]}
+                                    onPress={() => setOptionsVisible(true)}
+                                >
+                                    <Text style={{ color: colors.primaryText, fontSize: 28 }}>+</Text>
                                 </TouchableOpacity>
-                            );
-                        }}
-                    />
-                </View>
-            )}
 
-            {/* Floating + button */}
-            <TouchableOpacity
-                style={[styles.fab, { backgroundColor: colors.primary }]}
-                onPress={() => setOptionsVisible(true)}
-            >
-                <Text style={{ color: colors.primaryText, fontSize: 28 }}>+</Text>
-            </TouchableOpacity>
-
-            {/* Options bottom modal */}
-            <Modal visible={optionsVisible} animationType="slide" transparent>
-                <RNTouchableOpacity
-                    style={styles.modalBackdrop}
-                    activeOpacity={1}
-                    onPress={() => setOptionsVisible(false)}
-                >
-                    <TouchableWithoutFeedback>
-                        <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>¿Qué querés hacer?</Text>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.primary }]}
-                                onPress={() => {
-                                    setOptionsVisible(false);
-                                    navigation.navigate('CrearGrupo');
-                                }}
-                            >
-                                <Text style={[styles.modalButtonText, { color: colors.primaryText }]}>Crear Grupo</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalButton, { backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.borderLight }]}
-                                onPress={() => {
-                                    setOptionsVisible(false);
-                                    navigation.navigate('UnirseGrupo');
-                                }}
-                            >
-                                <Text style={[styles.modalButtonText, { color: colors.text }]}>
-                                    Unirse a un Grupo
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={{ marginTop: 12, alignItems: 'center' }}
-                                onPress={() => setOptionsVisible(false)}
-                            >
-                                <Text style={{ color: colors.textMuted }}>Cancelar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </TouchableWithoutFeedback>
-                </RNTouchableOpacity>
-            </Modal>
+                                <Modal visible={optionsVisible} transparent animationType="slide">
+                                    <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setOptionsVisible(false)}>
+                                        <TouchableWithoutFeedback>
+                                            <View style={[styles.modalContent, { backgroundColor: colors.modalBackground }]}>
+                                                <Text style={[styles.modalTitle, { color: colors.text }]}>¿Qué querés hacer?</Text>
+                                                <TouchableOpacity
+                                                    style={[styles.modalButton, { backgroundColor: colors.primary }]}
+                                                    onPress={() => {
+                                                        setOptionsVisible(false);
+                                                        guardOnlineAction(() => navigation.navigate('CrearGrupo'), 'Necesitas conexión a internet para crear un grupo');
+                                                    }}
+                                                >
+                                                    <Text style={[styles.modalButtonText, { color: colors.primaryText }]}>Crear Grupo</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[styles.modalButton, { backgroundColor: colors.cardBackground, borderWidth: 1, borderColor: colors.borderLight }]}
+                                                    onPress={() => {
+                                                        setOptionsVisible(false);
+                                                        guardOnlineAction(() => navigation.navigate('UnirseGrupo'), 'Necesitas conexión a internet para unirte a un grupo');
+                                                    }}
+                                                >
+                                                    <Text style={[styles.modalButtonText, { color: colors.text }]}>Unirse a un Grupo</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={{ marginTop: 12, alignItems: 'center' }}
+                                                    onPress={() => setOptionsVisible(false)}
+                                                >
+                                                    <Text style={{ color: colors.textMuted }}>Cancelar</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </TouchableWithoutFeedback>
+                                    </TouchableOpacity>
+                                </Modal>
+                            </View>
+                        )}
         </View>
     );
 }

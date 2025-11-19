@@ -15,8 +15,10 @@ import MainTabs from './src/navigation/MainTabs';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { ProfileProvider } from './src/contexts/ProfileContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
+import { NetworkProvider } from './src/contexts/NetworkContext';
 import EscanearAmigo from './src/screens/EscanearAmigo';
 import { api } from './src/api/client';
+import InlineAlertHost from './src/components/InlineAlert';
 
 const Stack = createNativeStackNavigator();
 
@@ -167,14 +169,18 @@ function AppNavigator() {
 
 const App = () => (
   <ThemeProvider>
-    {/* 🔥 FIX 3: Cambiado el orden. ProfileProvider debe envolver a AuthProvider */}
-    <ProfileProvider>
-      <AuthProvider>
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
-      </AuthProvider>
-    </ProfileProvider>
+    {/* NetworkProvider envuelve providers que usan NetInfo */}
+    <NetworkProvider>
+      {/* 🔥 FIX 3: Cambiado el orden. ProfileProvider debe envolver a AuthProvider */}
+      <ProfileProvider>
+        <AuthProvider>
+          <NavigationContainer>
+            <AppNavigator />
+            <InlineAlertHost />
+          </NavigationContainer>
+        </AuthProvider>
+      </ProfileProvider>
+    </NetworkProvider>
   </ThemeProvider>
 );
 

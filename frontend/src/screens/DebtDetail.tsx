@@ -1,74 +1,175 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Image, ScrollView, Dimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
 import { Linking } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { uploadReceipt, uploadReceiptUrl } from '../api/balances';
 import { useTheme } from '../contexts/ThemeContext';
 import { createSettlement } from '../api/settlements';
 
-const getStyles = (colors: any) => StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: colors.background, 
-    padding: 16 
+const { width } = Dimensions.get('window');
+const isSmallDevice = width < 375;
+
+const getStyles = (colors: any, insets: any) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  card: { 
-    backgroundColor: colors.modalBackground, 
-    borderRadius: 12, 
-    padding: 16, 
-    borderWidth: 1, 
-    borderColor: colors.borderLight 
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: insets.top + 16,
+    paddingBottom: 16,
+    backgroundColor: colors.modalBackground,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
-  title: { 
-    fontSize: 18, 
-    fontWeight: '700', 
-    color: colors.text, 
-    marginBottom: 12 
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
   },
-  label: { 
-    color: colors.textSecondary, 
-    fontSize: 12, 
-    marginTop: 8 
+  scrollContent: {
+    padding: 16,
+    paddingBottom: insets.bottom + 24,
   },
-  value: { 
-    fontSize: 16, 
-    fontWeight: '700', 
-    color: colors.text 
+  card: {
+    backgroundColor: colors.modalBackground,
+    borderRadius: 12,
+    padding: isSmallDevice ? 14 : 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginBottom: 12,
   },
-  uploadButton: { 
-    marginTop: 12, 
-    backgroundColor: colors.primary, 
-    padding: 12, 
-    borderRadius: 8, 
-    alignItems: 'center' 
+  infoRow: {
+    marginBottom: 16,
   },
-  mpButton: { 
-    marginTop: 8, 
-    backgroundColor: '#00ADEF', 
-    padding: 12, 
-    borderRadius: 8, 
-    alignItems: 'center' 
-  },
-  uploadedText: {
+  label: {
     color: colors.textSecondary,
-    marginBottom: 8
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  value: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  amountCard: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  amountLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  amount: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.error,
+  },
+  buttonPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    padding: isSmallDevice ? 12 : 14,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  buttonSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00ADEF',
+    padding: isSmallDevice ? 12 : 14,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   buttonText: {
     color: colors.primaryText,
-    fontWeight: '700'
+    fontWeight: '600',
+    fontSize: 15,
+    marginLeft: 8,
   },
-  errorAmount: {
-    color: '#B00020',
-    fontSize: 22
-  }
+  receiptSection: {
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  uploadedContainer: {
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  uploadedLabel: {
+    fontSize: 14,
+    color: colors.success,
+    fontWeight: '600',
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  receiptImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  previewContainer: {
+    alignItems: 'center',
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    marginBottom: 12,
+  },
+  previewLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  uploadPlaceholder: {
+    backgroundColor: colors.cardBackground,
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  uploadPlaceholderText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
+  },
 });
 
 export default function DebtDetail({ route, navigation }: any) {
   const { colors } = useTheme();
-  const styles = getStyles(colors);
+  const insets = useSafeAreaInsets();
+  const styles = getStyles(colors, insets);
   const { debt, grupoId } = route.params || {};
   const [uploading, setUploading] = useState(false);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(debt?.comprobanteUrl || null);
@@ -111,7 +212,6 @@ export default function DebtDetail({ route, navigation }: any) {
         return;
       }
 
-
       const rawCloudName = Constants.expoConfig?.extra?.CLOUDINARY_CLOUD_NAME;
       const rawUploadPreset = Constants.expoConfig?.extra?.CLOUDINARY_UPLOAD_PRESET;
       const cloudName = typeof rawCloudName === 'string' ? rawCloudName : undefined;
@@ -124,7 +224,6 @@ export default function DebtDetail({ route, navigation }: any) {
       const result = await ImagePicker.launchImageLibraryAsync({
         base64: wantBase64,
         quality: 0.7,
-        allowsEditing: true,
       });
 
       if (result.canceled) return;
@@ -140,26 +239,26 @@ export default function DebtDetail({ route, navigation }: any) {
       const deudorId = route.params?.deudorId;
       const acreedorId = debt?.haciaUsuario;
 
-        // Server-side upload: always read base64 and send to backend
-        try {
-          console.log('Usando subida server-side: leyendo archivo como base64 y enviando al backend');
-          const encoding = (FileSystem as any)?.EncodingType?.Base64 ?? 'base64';
-          const base64 = await FileSystem.readAsStringAsync(uri, { encoding });
-          if (!base64) throw new Error('No se pudo leer la imagen (base64)');
-          const resp = await uploadReceipt(grupoId, deudorId, acreedorId, filename, base64);
-          createSettlement(grupoId, {
-            desde_usuario: acreedorId,
-            hacia_usuario: deudorId,
-            importe: Number(debt?.importe || 0),
-            fecha_pago: new Date().toISOString().slice(0, 10)
-          });
-          setUploadedUrl(resp?.url || null);
-          Alert.alert('Comprobante subido', 'El comprobante se subió correctamente.');
-        } catch (err: any) {
-          console.error('upload error', err);
-          const serverMessage = err?.response?.data?.error || err?.response?.data || err?.message;
-          Alert.alert('Error al subir', String(serverMessage || 'No se pudo subir el comprobante.'));
-        }
+      // Server-side upload: always read base64 and send to backend
+      try {
+        console.log('Usando subida server-side: leyendo archivo como base64 y enviando al backend');
+        const encoding = (FileSystem as any)?.EncodingType?.Base64 ?? 'base64';
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding });
+        if (!base64) throw new Error('No se pudo leer la imagen (base64)');
+        const resp = await uploadReceipt(grupoId, deudorId, acreedorId, filename, base64);
+        createSettlement(grupoId, {
+          desde_usuario: acreedorId,
+          hacia_usuario: deudorId,
+          importe: Number(debt?.importe || 0),
+          fecha_pago: new Date().toISOString().slice(0, 10)
+        });
+        setUploadedUrl(resp?.url || null);
+        Alert.alert('Comprobante subido', 'El comprobante se subió correctamente.');
+      } catch (err: any) {
+        console.error('upload error', err);
+        const serverMessage = err?.response?.data?.error || err?.response?.data || err?.message;
+        Alert.alert('Error al subir', String(serverMessage || 'No se pudo subir el comprobante.'));
+      }
     } catch (e: any) {
       console.error('upload error', e);
       const serverMessage = e?.response?.data?.error || e?.response?.data || e?.message;
@@ -171,58 +270,103 @@ export default function DebtDetail({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Detalle de la deuda</Text>
-
-        <Text style={styles.label}>Acreedor</Text>
-        <Text style={styles.value}>{debt?.haciaUsuarioNombre || debt?.haciaUsuarioCorreo}</Text>
-
-        <Text style={styles.label}>Alias / CVU</Text>
-        <Text style={styles.value}>{debt?.haciaUsuarioClave || '—'}</Text>
-
-        <Text style={styles.label}>Importe</Text>
-        <Text style={[styles.value, styles.errorAmount]}>${Number(debt?.importe || 0).toFixed(2)}</Text>
-
-        <Text style={styles.label}>Motivo</Text>
-        <Text style={styles.value}>{debt?.gastoDescripcion || 'Pago pendiente'}</Text>
-
-        <View style={{ height: 12 }} />
-
-        <TouchableOpacity style={styles.mpButton} onPress={copyAndOpenMP}>
-          <Text style={styles.buttonText}>Copiar alias y abrir Mercado Pago</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Feather name="arrow-left" size={24} color={colors.iconColor} />
         </TouchableOpacity>
-
-        <View style={{ height: 12 }} />
-
-        {uploadedUrl ? (
-          <View style={{ alignItems: 'center' }}>
-            <Text style={styles.uploadedText}>Comprobante subido</Text>
-            <Image source={{ uri: uploadedUrl }} style={{ width: 200, height: 200, borderRadius: 8 }} />
-          </View>
-        ) : localUri ? (
-          <View style={{ alignItems: 'center' }}>
-            <Text style={styles.uploadedText}>Previsualización</Text>
-            <Image source={{ uri: localUri }} style={{ width: 200, height: 200, borderRadius: 8, marginBottom: 8 }} />
-            {uploading ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <TouchableOpacity style={styles.uploadButton} onPress={pickAndUpload}>
-                <Text style={styles.buttonText}>Cargar comprobante</Text>
-              </TouchableOpacity>
-            )
-            }
-          </View>
-        ) : (
-          <TouchableOpacity style={styles.uploadButton} onPress={pickAndUpload} disabled={uploading}>
-            {uploading ? (
-              <ActivityIndicator color={colors.primaryText} />
-            ) : (
-              <Text style={styles.buttonText}>Cargar comprobante</Text>
-            )}
-          </TouchableOpacity>
-        )}
-
+        <Text style={styles.headerTitle}>Detalle de la deuda</Text>
+        <View style={{ width: 24 }} />
       </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Amount Card */}
+        <View style={styles.amountCard}>
+          <Text style={styles.amountLabel}>Monto a pagar</Text>
+          <Text style={styles.amount}>${Number(debt?.importe || 0).toFixed(2)}</Text>
+        </View>
+
+        {/* Debt Info Card */}
+        <View style={styles.card}>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Le debés a</Text>
+            <Text style={styles.value}>{debt?.haciaUsuarioNombre || debt?.haciaUsuarioCorreo}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Alias / CVU</Text>
+            <Text style={styles.value}>{debt?.haciaUsuarioClave || '—'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Motivo</Text>
+            <Text style={styles.value}>{debt?.gastoDescripcion || 'Pago pendiente'}</Text>
+          </View>
+        </View>
+
+        {/* Actions Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Acciones rápidas</Text>
+
+          <TouchableOpacity style={styles.buttonSecondary} onPress={copyAndOpenMP}>
+            <Feather name="dollar-sign" size={18} color={colors.primaryText} />
+            <Text style={styles.buttonText}>Copiar alias y abrir Mercado Pago</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Receipt Section */}
+        <View style={styles.receiptSection}>
+          <Text style={styles.sectionTitle}>Comprobante de pago</Text>
+
+          {uploadedUrl ? (
+            <View style={styles.uploadedContainer}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Feather name="check-circle" size={16} color={colors.success} style={{ marginRight: 6 }} />
+                <Text style={{ color: colors.success, fontWeight: '600' }}>
+                  Comprobante subido
+                </Text>
+              </View>
+              <Image source={{ uri: uploadedUrl }} style={styles.receiptImage} resizeMode="contain" />
+            </View>
+          ) : localUri ? (
+            <View style={styles.previewContainer}>
+              <Text style={styles.previewLabel}>Previsualización</Text>
+              <Image source={{ uri: localUri }} style={styles.receiptImage} resizeMode="contain" />
+              {uploading ? (
+                <ActivityIndicator color={colors.primary} size="large" />
+              ) : (
+                <TouchableOpacity style={styles.buttonPrimary} onPress={pickAndUpload}>
+                  <Feather name="upload" size={18} color={colors.primaryText} />
+                  <Text style={styles.buttonText}>Subir comprobante</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.uploadPlaceholder}
+              onPress={pickAndUpload}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <ActivityIndicator color={colors.primary} size="large" />
+                  <Text style={styles.uploadPlaceholderText}>Subiendo...</Text>
+                </>
+              ) : (
+                <>
+                  <Feather name="upload-cloud" size={48} color={colors.textMuted} />
+                  <Text style={styles.uploadPlaceholderText}>
+                    Toca para seleccionar un comprobante{'\n'}de tu galería
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }

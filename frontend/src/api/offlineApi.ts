@@ -5,7 +5,12 @@ import NetInfo from '@react-native-community/netinfo';
 export class OfflineApi {
   static async isOnline(): Promise<boolean> {
     const state = await NetInfo.fetch();
-    return Boolean(state.isConnected && state.isInternetReachable);
+    // Some platforms may return `null` for isInternetReachable.
+    // Treat `isConnected` as sufficient when `isInternetReachable` is not provided.
+    const connected = Boolean(state.isConnected);
+    const reachable = state.isInternetReachable;
+    if (reachable === null || reachable === undefined) return connected;
+    return connected && Boolean(reachable);
   }
 
   static async fetchWithCache<T>(

@@ -17,6 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useNetwork } from '../contexts/NetworkContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { auth } from '../config/firebase';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
@@ -242,6 +243,7 @@ export default function PantallaPerfil({ navigation }: any) {
   const { user, logout } = useAuth();
   const { profileImage, setProfileImage, uploadProfileImage, loadProfileImage, loading: profileLoading } = useProfile();
   const { colors } = useTheme();
+  const { isConnected, isInternetReachable } = useNetwork();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors);
   const [nombre, setNombre] = useState('');
@@ -500,7 +502,16 @@ export default function PantallaPerfil({ navigation }: any) {
           <Feather name="arrow-left" size={24} color={colors.iconColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Perfil</Text>
-        <View style={{ width: 24 }} />
+        {/* Mostrar foto pequeña en la esquina superior derecha cuando hay conexión */}
+        <View>
+          {Boolean(isConnected && (isInternetReachable === null || isInternetReachable === undefined ? true : isInternetReachable)) ? (
+            <TouchableOpacity onPress={() => setShowImageModal(true)} disabled={profileLoading}>
+              <Image source={{ uri: profileImage }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 36 }} />
+          )}
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>

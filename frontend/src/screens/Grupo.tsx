@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, Alert, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, FlatList, Alert, RefreshControl, Image, Modal } from 'react-native';
+import * as balancesApi from '../api/balances';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 import { useOfflineGuard } from '../hooks/useOfflineGuard';
 import OfflineBanner from '../components/OfflineBanner';
 import { getGroupMembersOffline, getGroupExpensesOffline, getMyBalanceOffline, getGroupDetailsOffline } from '../api/offlineApi';
+import { useGrupo } from '../viewmodels/useGrupo';
 
 export default function Grupo({ route, navigation }: any) {
   const { grupoId, nombre, emoji } = route.params || {};
@@ -13,11 +15,16 @@ export default function Grupo({ route, navigation }: any) {
 
   const [members, setMembers] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [debts, setDebts] = useState<any[]>([]);
   const [myBalance, setMyBalance] = useState(0);
   const [groupDetails, setGroupDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fromCache, setFromCache] = useState(false);
+  const [viewMode, setViewMode] = useState<'gastos' | 'deudas'>('gastos');
+  const [fabModalVisible, setFabModalVisible] = useState(false);
+
+  const { members: onlineMembers, loading: membersLoading, refreshMembers, groupTotal } = useGrupo(grupoId);
 
   const loadGroupData = async (forceRefresh = false) => {
     if (forceRefresh) setRefreshing(true);
@@ -33,10 +40,26 @@ export default function Grupo({ route, navigation }: any) {
         // ignore if no cached group details
       }
       const membersResult = await getGroupMembersOffline(grupoId);
-      setMembers(membersResult.data || []);
+      // prefer onlineMembers when online and available (richer with balances)
+      if (isOnline && Array.isArray(onlineMembers) && onlineMembers.length > 0) {
+        setMembers(onlineMembers as any[]);
+      } else {
+        setMembers(membersResult.data || []);
+      }
 
       const expensesResult = await getGroupExpensesOffline(grupoId);
       setExpenses(expensesResult.data || []);
+
+      // If viewing debts or on initial load and online, try to fetch debts
+      if (isOnline) {
+        try {
+          const d = await balancesApi.getMyDebts(grupoId);
+          setDebts(Array.isArray(d) ? d : []);
+        } catch (e) {
+          console.warn('No se pudieron obtener deudas:', e?.message || e);
+          setDebts([]);
+        }
+      }
 
       const balanceResult = await getMyBalanceOffline(grupoId);
       setMyBalance(balanceResult.data?.balance || 0);
@@ -55,7 +78,30 @@ export default function Grupo({ route, navigation }: any) {
     loadGroupData();
   }, [grupoId]);
 
+  // keep members in sync when VM updates
+  useEffect(() => {
+    if (isOnline && Array.isArray(onlineMembers) && onlineMembers.length > 0) {
+      setMembers(onlineMembers as any[]);
+    }
+  }, [onlineMembers, isOnline]);
+
+  // when switching to 'deudas' refresh debts if online
+  useEffect(() => {
+    if (viewMode === 'deudas' && isOnline) {
+      (async () => {
+        try {
+          const d = await balancesApi.getMyDebts(grupoId);
+          setDebts(Array.isArray(d) ? d : []);
+        } catch (e) {
+          console.warn('Error cargando deudas al cambiar vista:', e?.message || e);
+          setDebts([]);
+        }
+      })();
+    }
+  }, [viewMode, isOnline, grupoId]);
+
   const handleAddExpense = () => {
+    setFabModalVisible(false);
     guardOnlineAction(
       () => navigation.navigate('AddGasto', { grupoId, nombre }),
       'Necesitas conexión para crear un gasto'
@@ -63,6 +109,7 @@ export default function Grupo({ route, navigation }: any) {
   };
 
   const handleInviteMember = () => {
+    setFabModalVisible(false);
     guardOnlineAction(
       () => navigation.navigate('InvitarMiembro', { grupoId, nombre, emoji }),
       'Necesitas conexión para invitar miembros'
@@ -113,6 +160,7 @@ export default function Grupo({ route, navigation }: any) {
         </View>
       )}
 
+      {/* Balance card (moved to top) */}
       <View style={{
         backgroundColor: colors.modalBackground,
         margin: 16,
@@ -120,7 +168,7 @@ export default function Grupo({ route, navigation }: any) {
         borderRadius: 12,
         alignItems: 'center'
       }}>
-        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Tu balance</Text>
+        <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Balance del grupo</Text>
         <Text style={{ 
           fontSize: 32, 
           fontWeight: '700', 
@@ -130,17 +178,65 @@ export default function Grupo({ route, navigation }: any) {
           ${Math.abs(myBalance).toFixed(2)}
         </Text>
         <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 4 }}>
-          {myBalance > 0 ? 'Te deben' : myBalance < 0 ? 'Debes' : 'Sin deudas'}
+          Total gastado
         </Text>
       </View>
+
+      {/* Miembros del grupo */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Miembros</Text>
+        {members.length === 0 ? (
+          <Text style={{ color: colors.textSecondary, marginTop: 8 }}>No hay miembros registrados</Text>
+        ) : (
+          <FlatList
+            data={members}
+            horizontal
+            keyExtractor={(m) => String(m.id)}
+            contentContainerStyle={{ paddingVertical: 12 }}
+            renderItem={({ item }) => (
+              <View style={{ width: 120, marginRight: 12, alignItems: 'center' }}>
+                {item.foto_url ? (
+                  <Image source={{ uri: item.foto_url }} style={{ width: 56, height: 56, borderRadius: 28, marginBottom: 8 }} />
+                ) : (
+                  <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.emojiCircle, marginBottom: 8, alignItems: 'center', justifyContent: 'center' }}>
+                    <Feather name="user" size={20} color={colors.primaryText} />
+                  </View>
+                )}
+                <Text style={{ color: colors.text, fontWeight: '600' }} numberOfLines={1}>{item.nombre || item.name || item.name}</Text>
+                {typeof item.balance !== 'undefined' && (
+                  <Text style={{ color: item.balance > 0 ? colors.success : item.balance < 0 ? colors.error : colors.textMuted, marginTop: 4 }}>
+                    ${Math.abs(Number(item.balance || 0)).toFixed(2)}
+                  </Text>
+                )}
+              </View>
+            )}
+          />
+        )}
+      </View>
+
+      {/* Selector Gastos / Deudas as pill under avatars (more spacing) */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 16, alignItems: 'center', marginBottom: 4 }}>
+        <View style={{ flexDirection: 'row', backgroundColor: colors.cardBackground, borderRadius: 999, padding: 6, paddingHorizontal: 6 }}>
+          <TouchableOpacity onPress={() => setViewMode('gastos')} style={{ paddingVertical: 10, paddingHorizontal: 28, borderRadius: 999, backgroundColor: viewMode === 'gastos' ? colors.primary : 'transparent', marginHorizontal: 6 }}>
+            <Text style={{ color: viewMode === 'gastos' ? colors.primaryText : colors.textSecondary, fontWeight: viewMode === 'gastos' ? '700' : '600' }}>Gastos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setViewMode('deudas')} style={{ paddingVertical: 10, paddingHorizontal: 28, borderRadius: 999, backgroundColor: viewMode === 'deudas' ? colors.error : 'transparent', marginHorizontal: 6 }}>
+            <Text style={{ color: viewMode === 'deudas' ? '#fff' : colors.textSecondary, fontWeight: viewMode === 'deudas' ? '700' : '600' }}>Deudas</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Balance moved below content */}
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <FlatList
-          data={expenses}
+        <>
+          {viewMode === 'gastos' ? (
+            <FlatList
+              data={expenses}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -183,7 +279,65 @@ export default function Grupo({ route, navigation }: any) {
             </View>
           }
         />
+          ) : (
+            // Deudas view
+            <View style={{ paddingHorizontal: 16 }}>
+              {!isOnline ? (
+                <View style={{ padding: 24, alignItems: 'center' }}>
+                  <Text style={{ color: colors.textMuted }}>Las deudas sólo están disponibles con conexión</Text>
+                </View>
+              ) : debts.length === 0 ? (
+                <View style={{ padding: 32, alignItems: 'center' }}>
+                  <Feather name="inbox" size={48} color={colors.textMuted} />
+                  <Text style={{ color: colors.textMuted, marginTop: 16 }}>No hay deudas pendientes</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={debts}
+                  keyExtractor={(d) => d.id || String(d.debtId || Math.random())}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => guardOnlineAction(() => navigation.navigate('DebtDetail', { debt: item, grupoId }), 'Necesitas conexión para ver la deuda')}
+                      style={{ marginBottom: 12 }}
+                    >
+                      <View style={{ backgroundColor: colors.cardBackground, padding: 16, borderRadius: 12 }}>
+                        <Text style={{ fontWeight: '700', color: colors.text, fontSize: 15 }}>{item.gastoDescripcion || item.descripcion || item.concepto || 'Motivo'}</Text>
+                        <Text style={{ color: colors.textSecondary, marginTop: 6 }}>A: {item.haciaUsuarioNombre || item.acreedorNombre || item.usuarioNombre || item.deudorNombre || '—'}</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                          <Text style={{ fontWeight: '700', fontSize: 16 }}>${Number(item.importe || item.monto || 0).toFixed(2)}</Text>
+                          <View style={{ backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 }}>
+                            <Text style={{ color: colors.primaryText, fontWeight: '700' }}>Ver / Pagar</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+            </View>
+          )}
+        </>
       )}
+
+      {/* Balance card below content as requested */}
+      
+
+      <Modal visible={fabModalVisible} transparent animationType="slide">
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: colors.modalBackground, padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
+            <TouchableOpacity onPress={handleAddExpense} style={{ padding: 12, backgroundColor: colors.primary, borderRadius: 8, marginBottom: 8, alignItems: 'center' }}>
+              <Text style={{ color: colors.primaryText, fontWeight: '700' }}>Agregar gasto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleInviteMember} style={{ padding: 12, backgroundColor: colors.cardBackground, borderRadius: 8, marginBottom: 8, alignItems: 'center' }}>
+              <Text style={{ color: colors.text }}>Invitar miembro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setFabModalVisible(false)} style={{ alignItems: 'center', padding: 8 }}>
+              <Text style={{ color: colors.textMuted }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <TouchableOpacity
         style={{
@@ -198,7 +352,7 @@ export default function Grupo({ route, navigation }: any) {
           justifyContent: 'center',
           opacity: isOnline ? 1 : 0.5,
         }}
-        onPress={handleAddExpense}
+        onPress={() => setFabModalVisible(true)}
       >
         <Text style={{ color: colors.primaryText, fontSize: 28 }}>+</Text>
       </TouchableOpacity>

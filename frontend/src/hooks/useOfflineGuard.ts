@@ -3,7 +3,9 @@ import { showInlineAlert } from '../components/InlineAlert';
 
 export function useOfflineGuard() {
   const { isConnected, isInternetReachable } = useNetwork();
-  const isOnline = Boolean(isConnected && isInternetReachable);
+  // Some platforms return null/undefined for isInternetReachable —
+  // consider the device online if `isConnected` is true and reachability is unknown.
+  const isOnline = Boolean(isConnected && (isInternetReachable === null || isInternetReachable === undefined ? true : isInternetReachable));
 
   const guardOnlineAction = (
     action: () => void | Promise<void>,

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert, Image, Modal, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import Header from '../components/Header';
 import OfflineBanner from '../components/OfflineBanner';
 import { useTheme } from '../contexts/ThemeContext';
 import { useOfflineGuard } from '../hooks/useOfflineGuard';
 import { getFriendsOffline, getPendingRequestsOffline } from '../api/offlineApi';
+import { useAmigos } from '../viewmodels/useAmigos';
 
 export default function Amigos({ navigation }: any) {
     const { colors } = useTheme();
@@ -16,18 +17,33 @@ export default function Amigos({ navigation }: any) {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [fromCache, setFromCache] = useState(false);
+    const [addModalVisible, setAddModalVisible] = useState(false);
+    const [searchEmail, setSearchEmail] = useState('');
+
+    // useAmigos provides online flows and helpers (add/invite/refresh)
+    const amigosVM = useAmigos();
+    const { friends: onlineFriends, loading: onlineLoading, refresh: refreshOnline, inviteByEmail, addFriend } = amigosVM;
 
     const loadData = async (forceRefresh = false) => {
         if (forceRefresh) setRefreshing(true);
         else setLoading(true);
 
         try {
-            const friendsResult = await getFriendsOffline();
-            const pendingResult = await getPendingRequestsOffline();
+            if (isOnline) {
+                // prefer online viewmodel data when online
+                const refreshed = await refreshOnline();
+                setFriends(refreshed || amigosVM.friends || []);
+                // pending requests come from the VM (use the hook's state)
+                setPendingRequests(amigosVM.pendingRequests || []);
+                setFromCache(false);
+            } else {
+                const friendsResult = await getFriendsOffline();
+                const pendingResult = await getPendingRequestsOffline();
 
-            setFriends(friendsResult.data || []);
-            setPendingRequests(pendingResult.data || []);
-            setFromCache(friendsResult.fromCache || pendingResult.fromCache);
+                setFriends(friendsResult.data || []);
+                setPendingRequests(pendingResult.data || []);
+                setFromCache(friendsResult.fromCache || pendingResult.fromCache);
+            }
         } catch (error) {
             console.error('Error loading friends:', error);
         } finally {
@@ -48,18 +64,70 @@ export default function Amigos({ navigation }: any) {
     }, [navigation, isOnline]);
 
     const handleAddFriend = () => {
-        guardOnlineAction(
-            () => {
-                Alert.alert('Info', 'Implementar modal de agregar amigo');
-            },
-            'Necesitas conexión para agregar amigos'
-        );
+        // show modal with options (search by email / scan QR)
+        if (!isOnline) {
+            guardOnlineAction(() => {}, 'Necesitas conexión para agregar amigos');
+            return;
+        }
+        setAddModalVisible(true);
+    };
+
+    const handleInviteByEmail = async () => {
+        if (!searchEmail) return Alert.alert('Email vacío', 'Ingresá un email válido');
+        try {
+            await inviteByEmail(searchEmail);
+            Alert.alert('Listo', 'Invitación enviada');
+            setAddModalVisible(false);
+            setSearchEmail('');
+            // refresh lists
+            const refreshed = await refreshOnline();
+            setFriends(refreshed || amigosVM.friends || []);
+        } catch (err: any) {
+            const msg = err?.message || err?.response?.data?.error || 'Error';
+            Alert.alert('Error', msg.toString());
+        }
     };
 
     return (
         <View style={{ flex: 1, backgroundColor: colors.background }}>
             <OfflineBanner />
             <Header navigation={navigation} variant="amigos" />
+
+            <Modal visible={addModalVisible} transparent animationType="slide">
+                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+                    <View style={{ backgroundColor: colors.modalBackground, padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 }}>Agregar amigo</Text>
+
+                        <TextInput
+                            placeholder="Buscar por email"
+                            placeholderTextColor={colors.textMuted}
+                            value={searchEmail}
+                            onChangeText={setSearchEmail}
+                            style={{ backgroundColor: colors.cardBackground, padding: 12, borderRadius: 8, color: colors.text, marginBottom: 8 }}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                        />
+                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                            <TouchableOpacity
+                                style={{ flex: 1, backgroundColor: colors.primary, padding: 12, borderRadius: 8, alignItems: 'center' }}
+                                onPress={handleInviteByEmail}
+                            >
+                                <Text style={{ color: colors.primaryText, fontWeight: '600' }}>Invitar amigo</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{ flex: 1, backgroundColor: colors.cardBackground, padding: 12, borderRadius: 8, alignItems: 'center' }}
+                                onPress={() => { setAddModalVisible(false); navigation.navigate('EscanearAmigo'); }}
+                            >
+                                <Text style={{ color: colors.text }}>Escanear QR</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity onPress={() => setAddModalVisible(false)} style={{ alignItems: 'center', padding: 8 }}>
+                            <Text style={{ color: colors.textMuted }}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {fromCache && !loading && (
                 <View style={{ 
@@ -210,11 +278,24 @@ export default function Amigos({ navigation }: any) {
                         alignItems: 'center',
                         justifyContent: 'space-between'
                     }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{item.name || item.nombre}</Text>
-                            <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>
-                                {item.groupsInCommon || 0} grupos en común
-                            </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                            {item.foto_url ? (
+                                <Image
+                                    source={{ uri: item.foto_url }}
+                                    style={{ width: 48, height: 48, borderRadius: 24, marginRight: 12 }}
+                                />
+                            ) : (
+                                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.emojiCircle, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Feather name="user" size={20} color={colors.primaryText} />
+                                </View>
+                            )}
+
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{item.name || item.nombre}</Text>
+                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>
+                                    {item.groupsInCommon ?? 0} grupos en común
+                                </Text>
+                            </View>
                         </View>
                         <Feather name="chevron-right" size={20} color={colors.iconColor} />
                     </View>

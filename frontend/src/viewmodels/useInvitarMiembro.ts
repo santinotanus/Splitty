@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as groupsApi from '../api/groups';
 import * as friendsApi from '../api/friends';
+import { Alert } from 'react-native';
 
 export function useInvitarMiembro(grupoId?: string) {
   const [inviteData, setInviteData] = useState<any | null>(null);
@@ -16,6 +17,11 @@ export function useInvitarMiembro(grupoId?: string) {
       setInviteData(res);
     } catch (e) {
       console.error('createInviteLink error', e);
+      // Friendly message when forbidden (not admin)
+      const status = (e as any)?.response?.status;
+      if (status === 403) {
+        Alert.alert('Sin permisos', 'Solo los administradores del grupo pueden generar links de invitacion');
+      }
       setInviteData(null);
     } finally {
       setLoadingInvite(false);

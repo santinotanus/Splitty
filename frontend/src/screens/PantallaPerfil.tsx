@@ -17,6 +17,7 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { useProfile } from '../contexts/ProfileContext';
+import { useNetwork } from '../contexts/NetworkContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { auth } from '../config/firebase';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
@@ -242,6 +243,7 @@ export default function PantallaPerfil({ navigation }: any) {
   const { user, logout } = useAuth();
   const { profileImage, setProfileImage, uploadProfileImage, loadProfileImage, loading: profileLoading } = useProfile();
   const { colors } = useTheme();
+  const { isConnected, isInternetReachable } = useNetwork();
   const insets = useSafeAreaInsets();
   const styles = getStyles(colors);
   const [nombre, setNombre] = useState('');
@@ -500,7 +502,16 @@ export default function PantallaPerfil({ navigation }: any) {
           <Feather name="arrow-left" size={24} color={colors.iconColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Perfil</Text>
-        <View style={{ width: 24 }} />
+        {/* Mostrar foto pequeña en la esquina superior derecha cuando hay conexión */}
+        <View>
+          {Boolean(isConnected && (isInternetReachable === null || isInternetReachable === undefined ? true : isInternetReachable)) ? (
+            <TouchableOpacity onPress={() => setShowImageModal(true)} disabled={profileLoading}>
+              <Image source={{ uri: profileImage }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 36 }} />
+          )}
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -517,10 +528,16 @@ export default function PantallaPerfil({ navigation }: any) {
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>
             ) : (
-              <Image
-                source={{ uri: profileImage }}
-                style={styles.profilePhoto}
-              />
+              profileImage ? (
+                <Image
+                  source={{ uri: profileImage }}
+                  style={styles.profilePhoto}
+                />
+              ) : (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name="user" size={36} color={colors.text} />
+                </View>
+              )
             )}
           </TouchableOpacity>
           <TouchableOpacity
@@ -775,11 +792,18 @@ export default function PantallaPerfil({ navigation }: any) {
             onPress={(e) => e.stopPropagation()}
             style={styles.imageModalContent}
           >
-            <Image
-              source={{ uri: profileImage }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
+            {profileImage ? (
+              <Image
+                source={{ uri: profileImage }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={[styles.fullImage, { alignItems: 'center', justifyContent: 'center' }]}>
+                <Feather name="user" size={80} color={colors.textMuted} />
+                <Text style={{ color: colors.textSecondary, marginTop: 12 }}>Sin foto de perfil</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>

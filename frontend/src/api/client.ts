@@ -89,8 +89,15 @@ api.interceptors.response.use(
     if (error.code === 'ECONNABORTED') {
       console.error('⏱️ Request timeout después de 30 segundos');
     } else if (error.response) {
-      console.error(`❌ ${error.response.status} ${error.config?.url}`);
-      console.error('📥 Error response:', error.response.data);
+        const status = error.response.status;
+        // Avoid noisy redbox logs for client errors (4xx) that we may handle locally
+        if (status >= 400 && status < 500) {
+          console.warn(`⚠️ ${status} ${error.config?.url}`);
+          console.warn('📥 Error response:', error.response.data);
+        } else {
+          console.error(`❌ ${status} ${error.config?.url}`);
+          console.error('📥 Error response:', error.response.data);
+        }
     } else if (error.request) {
       console.error('❌ No se recibió respuesta del servidor');
       console.error('🔗 URL intentada:', error.config?.url);

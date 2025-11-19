@@ -30,7 +30,10 @@ export default function AddGasto({ route, navigation }: any) {
     const map: Record<string, boolean> = {};
     members.forEach((m: any) => { map[m.id] = true; });
     setSelectedIds(map);
-    if (members.length > 0) setPayerId(members[0].id);
+    if (members.length > 0) {
+      const me = members.find((x: any) => x.firebase_uid === user?.uid);
+      setPayerId(me?.id || members[0].id);
+    }
   }, [members]);
 
   const participantList = useMemo(() => members.filter(m => selectedIds[m.id]), [members, selectedIds]);
@@ -68,16 +71,54 @@ export default function AddGasto({ route, navigation }: any) {
     if (!payerId) return Alert.alert('Quien pagó', 'Seleccioná quien pagó');
     if (participantsCount === 0) return Alert.alert('Participantes', 'Seleccioná al menos un participante');
     let division: Array<{ id: string; monto: number; percent?: number }> = [];
+
+    // Helper to round to cents
+    const roundCents = (v: number) => Math.round(v * 100) / 100;
+
     if (divisionMode === 'equal') {
-      division = participantList.map(p => ({ id: p.id, monto: parseFloat((equalShare).toFixed(2)), percent: parseFloat((100 / participantsCount).toFixed(2)) }));
+      // Distribute cents so sum equals numericAmount exactly
+      const count = participantList.length;
+      const totalCents = Math.round(numericAmount * 100);
+      const base = Math.floor(totalCents / count);
+      const remainder = totalCents - base * count;
+
+      division = participantList.map((p, idx) => {
+        const cents = base + (idx < remainder ? 1 : 0);
+        return { id: p.id, monto: cents / 100, percent: roundCents((cents / totalCents) * 100) };
+      });
     } else if (divisionMode === 'custom-amount') {
-      division = participantList.map(p => ({ id: p.id, monto: parseFloat(((customSplits[p.id]?.amount) || 0).toFixed(2)) }));
+      division = participantList.map(p => ({ id: p.id, monto: roundCents((customSplits[p.id]?.amount) || 0) }));
       const totalAssigned = division.reduce((s, x) => s + x.monto, 0);
-      if (Math.abs(totalAssigned - numericAmount) > 0.01) return Alert.alert('Distribución inválida', 'La suma de montos asignados no coincide con el total');
+      if (Math.abs(totalAssigned - numericAmount) > 0.001) return Alert.alert('Distribución inválida', 'La suma de montos asignados no coincide con el total');
     } else if (divisionMode === 'custom-percent') {
-      division = participantList.map(p => ({ id: p.id, monto: parseFloat((((customSplits[p.id]?.percent || 0) / 100) * numericAmount).toFixed(2)), percent: customSplits[p.id]?.percent }));
+      // compute amounts from percents, then adjust cents to match total
       const totalPct = participantList.reduce((s, p) => s + (customSplits[p.id]?.percent || 0), 0);
       if (Math.abs(totalPct - 100) > 0.5) return Alert.alert('Distribución inválida', 'Los porcentajes deben sumar 100%');
+
+      const totalCents = Math.round(numericAmount * 100);
+      // calculate raw cents per participant
+      const centsArr = participantList.map(p => {
+        const pct = customSplits[p.id]?.percent || 0;
+        return Math.floor((pct / 100) * totalCents);
+      });
+
+      let assigned = centsArr.reduce((s, x) => s + x, 0);
+
+      // distribute remaining cents based on highest remainder
+      const remainders = participantList.map((p, idx) => {
+        const pct = customSplits[p.id]?.percent || 0;
+        const exact = (pct / 100) * totalCents;
+        return { idx, rem: exact - Math.floor(exact) };
+      }).sort((a, b) => b.rem - a.rem);
+
+      let i = 0;
+      while (assigned < totalCents && i < remainders.length) {
+        centsArr[remainders[i].idx] += 1;
+        assigned += 1;
+        i += 1;
+      }
+
+      division = participantList.map((p, idx) => ({ id: p.id, monto: centsArr[idx] / 100, percent: customSplits[p.id]?.percent }));
     }
 
     const payload = {
@@ -90,13 +131,20 @@ export default function AddGasto({ route, navigation }: any) {
     };
     (async () => {
       try {
+        const participantesPayload = payload.division.map((d: any) => {
+          const p: any = { usuarioId: d.id };
+          if (d.monto !== undefined && d.monto !== null) p.parte_importe = d.monto;
+          if (d.percent !== undefined && d.percent !== null) p.parte_porcentaje = d.percent;
+          return p;
+        });
+
         const body = {
           pagadorId: payload.pagadorId,
           descripcion: payload.descripcion,
           importe: payload.monto,
           lugar: undefined,
           fecha_pago: undefined,
-          participantes: payload.division.map((d: any) => ({ usuarioId: d.id, parte_importe: d.monto, parte_porcentaje: d.percent ?? null }))
+          participantes: participantesPayload
         };
         console.log('Creating expense', body);
         const res = await gastosApi.createExpense(grupoId, body);
@@ -177,7 +225,7 @@ export default function AddGasto({ route, navigation }: any) {
               <View style={[styles.checkbox, selectedIds[m.id] && { backgroundColor: colors.primary, borderColor: colors.primary }]}>
                 {selectedIds[m.id] && <Text style={{ color: '#fff' }}>✓</Text>}
               </View>
-              <Text style={styles.rowText}>{m.nombre || m.correo || 'Miembro'}</Text>
+              <Text style={styles.rowText}>{m.firebase_uid === user?.uid ? 'Tú' : (m.nombre || m.correo || 'Miembro')}</Text>
             </TouchableOpacity>
           ))}
 
@@ -206,7 +254,7 @@ export default function AddGasto({ route, navigation }: any) {
           ) : (
             participantList.map(p => (
               <View key={p.id} style={styles.divisionRow}>
-                <Text style={styles.divisionText}>{p.nombre || p.correo}</Text>
+                <Text style={styles.divisionText}>{p.firebase_uid === user?.uid ? 'Tú' : (p.nombre || p.correo)}</Text>
                 <View style={styles.divisionDetailRow}>
                   {divisionMode === 'equal' && (
                     <>

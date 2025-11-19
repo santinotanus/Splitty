@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-nativ
 import { useGastos } from '../viewmodels/useGastos';
 import { useIsFocused } from '@react-navigation/native';
 import { useTheme } from '../contexts/ThemeContext';
+import CacheIndicator from '../components/CacheIndicator';
 
 export default function Gastos() {
   const { colors } = useTheme();
   // 1. Usar getStyles con los colores del tema
   const styles = getStyles(colors);
-  const { data, loading, error, refresh } = useGastos();
+  const { data, loading, error, refresh, fromCache } = useGastos();
   const isFocused = useIsFocused();
 
   React.useEffect(() => {
@@ -37,6 +38,7 @@ export default function Gastos() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Gastos</Text>
+      <CacheIndicator visible={Boolean(fromCache && !loading)} onRefresh={() => refresh()} />
       <FlatList
         data={data}
         keyExtractor={(item, idx) => item.id?.toString() || idx.toString()}

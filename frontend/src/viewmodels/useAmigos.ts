@@ -66,13 +66,16 @@ export function useAmigos() {
                 });
 
                 setFriends(enriched);
+                return enriched;
             } catch (e) {
                 // If groups fetch fails, fall back to raw mapped
                 setFriends(mapped);
+                return mapped;
             }
         } catch (err) {
             console.error('Error cargando amigos', err);
             setError('Error cargando amigos');
+            return [];
         } finally {
             setLoading(false);
         }
@@ -150,12 +153,10 @@ export function useAmigos() {
     }, [fetchFriends]);
 
     const refreshAll = useCallback(async () => {
-            // Ejecutamos ambas cargas en paralelo y esperamos a que terminen
-            // Usamos Promise.allSettled para que si una falla, la otra se cargue igual
-            await Promise.allSettled([
-                fetchFriends(),
-                fetchPending()
-            ]);
+            // Ejecutamos ambas cargas y retornamos la lista de amigos actualizada
+            const friendsResult = await fetchFriends();
+            await fetchPending();
+            return friendsResult;
         }, [fetchFriends, fetchPending]);
 
     const acceptPending = useCallback(async (solicitudId: string) => {

@@ -1,5 +1,6 @@
-import { db } from '../../config/db';
 import { Knex } from 'knex';
+import { db } from '../../config/db';
+import crypto from 'crypto';
 
 export async function createSettlementWithLedger(
   trx: Knex.Transaction,
@@ -9,34 +10,36 @@ export async function createSettlementWithLedger(
   importe: number,
   fechaPago: Date
 ) {
-  // 1. Insertar liquidación
-  const liquidacionResult = await trx.raw(
+  const liquidacionId = crypto.randomUUID();
+
+  console.log('💾 createSettlementWithLedger args', {
+    liquidacionId,
+    grupoId,
+    desdeUsuario,
+    haciaUsuario,
+    importe,
+    fechaPago,
+  });
+
+  await trx.raw(
     `INSERT INTO dbo.liquidaciones (id, grupo_id, desde_usuario, hacia_usuario, importe, fecha_pago)
-     OUTPUT inserted.id
-     VALUES (NEWID(), ?, ?, ?, ?, ?)`,
-    [grupoId, desdeUsuario, haciaUsuario, importe, fechaPago]
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [liquidacionId, grupoId, desdeUsuario, haciaUsuario, importe, fechaPago]
   );
 
-  const liquidacionId = liquidacionResult?.[0]?.[0]?.id as string | undefined;
-  if (!liquidacionId) {
-    throw new Error('FAILED_TO_CREATE_SETTLEMENT');
-  }
-
-  // 2. Insertar asientos en ledger
-  // Desde_usuario: débito (D) porque está pagando (reduce su deuda/balance negativo)
   await trx.raw(
     `INSERT INTO dbo.ledger (id, grupo_id, usuario_id, tipo_origen, liquidacion_id, direccion, importe, fecha)
      VALUES (NEWID(), ?, ?, 'liquidacion', ?, 'D', ?, SYSUTCDATETIME())`,
     [grupoId, desdeUsuario, liquidacionId, importe]
   );
 
-  // Hacia_usuario: crédito (C) porque está recibiendo (reduce lo que le deben/balance positivo)
   await trx.raw(
     `INSERT INTO dbo.ledger (id, grupo_id, usuario_id, tipo_origen, liquidacion_id, direccion, importe, fecha)
      VALUES (NEWID(), ?, ?, 'liquidacion', ?, 'C', ?, SYSUTCDATETIME())`,
     [grupoId, haciaUsuario, liquidacionId, importe]
   );
 
+  console.log('✅ Liquidación creada con id', liquidacionId);
   return liquidacionId;
 }
 

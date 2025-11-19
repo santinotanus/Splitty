@@ -4,6 +4,7 @@ import * as svc from './liquidaciones.service';
 
 export async function crearLiquidacion(req: Request, res: Response) {
   try {
+    console.log("holaaa")
     const firebaseUid = (req as AuthRequest).user?.uid;
     if (!firebaseUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
 

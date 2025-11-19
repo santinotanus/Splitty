@@ -7,6 +7,7 @@ import { Linking } from 'react-native';
 import Constants from 'expo-constants';
 import { uploadReceipt, uploadReceiptUrl } from '../api/balances';
 import { useTheme } from '../contexts/ThemeContext';
+import { createSettlement } from '../api/settlements';
 
 const getStyles = (colors: any) => StyleSheet.create({
   container: { 
@@ -146,6 +147,12 @@ export default function DebtDetail({ route, navigation }: any) {
           const base64 = await FileSystem.readAsStringAsync(uri, { encoding });
           if (!base64) throw new Error('No se pudo leer la imagen (base64)');
           const resp = await uploadReceipt(grupoId, deudorId, acreedorId, filename, base64);
+          createSettlement(grupoId, {
+            desde_usuario: acreedorId,
+            hacia_usuario: deudorId,
+            importe: Number(debt?.importe || 0),
+            fecha_pago: new Date().toISOString().slice(0, 10)
+          });
           setUploadedUrl(resp?.url || null);
           Alert.alert('Comprobante subido', 'El comprobante se subió correctamente.');
         } catch (err: any) {
@@ -202,7 +209,8 @@ export default function DebtDetail({ route, navigation }: any) {
               <TouchableOpacity style={styles.uploadButton} onPress={pickAndUpload}>
                 <Text style={styles.buttonText}>Cargar comprobante</Text>
               </TouchableOpacity>
-            )}
+            )
+            }
           </View>
         ) : (
           <TouchableOpacity style={styles.uploadButton} onPress={pickAndUpload} disabled={uploading}>

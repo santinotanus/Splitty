@@ -192,7 +192,7 @@ export default function Grupo({ route, navigation }: any) {
             data={members}
             horizontal
             keyExtractor={(m) => String(m.id)}
-            contentContainerStyle={{ paddingVertical: 12 }}
+            contentContainerStyle={{ paddingVertical: 12, flexGrow: 1, justifyContent: 'center' }}
             renderItem={({ item }) => (
               <View style={{ width: 120, marginRight: 12, alignItems: 'center' }}>
                 {item.foto_url ? (
@@ -244,13 +244,7 @@ export default function Grupo({ route, navigation }: any) {
               enabled={isOnline}
             />
           }
-          ListHeaderComponent={
-            <View style={{ padding: 16 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
-                Gastos recientes
-              </Text>
-            </View>
-          }
+          contentContainerStyle={{ paddingTop: 16 }}
           renderItem={({ item }) => (
             <View style={{
               backgroundColor: colors.cardBackground,
@@ -281,7 +275,7 @@ export default function Grupo({ route, navigation }: any) {
         />
           ) : (
             // Deudas view
-            <View style={{ paddingHorizontal: 16 }}>
+            <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
               {!isOnline ? (
                 <View style={{ padding: 24, alignItems: 'center' }}>
                   <Text style={{ color: colors.textMuted }}>Las deudas sólo están disponibles con conexión</Text>

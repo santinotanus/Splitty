@@ -4,6 +4,11 @@ import { Feather } from '@expo/vector-icons';
 import Header from '../components/Header';
 import OfflineBanner from '../components/OfflineBanner';
 import { useTheme } from '../contexts/ThemeContext';
+import { getCurrentUser } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
+import { Share } from 'react-native';
+import * as ExpoClipboard from 'expo-clipboard';
+import QRCode from 'react-native-qrcode-svg';
 import { useOfflineGuard } from '../hooks/useOfflineGuard';
 import { getFriendsOffline, getPendingRequestsOffline } from '../api/offlineApi';
 import { useAmigos } from '../viewmodels/useAmigos';
@@ -19,6 +24,10 @@ export default function Amigos({ navigation }: any) {
     const [fromCache, setFromCache] = useState(false);
     const [addModalVisible, setAddModalVisible] = useState(false);
     const [searchEmail, setSearchEmail] = useState('');
+    const [myQrModalVisible, setMyQrModalVisible] = useState(false);
+    const [myQrData, setMyQrData] = useState<string | null>(null);
+    const [myQrImageUrl, setMyQrImageUrl] = useState<string | null>(null);
+    const { user } = useAuth();
 
     // useAmigos provides online flows and helpers (add/invite/refresh)
     const amigosVM = useAmigos();
@@ -54,6 +63,27 @@ export default function Amigos({ navigation }: any) {
 
     useEffect(() => {
         loadData();
+        // prefer Firebase auth user for offline-ready QR
+        if (user && user.uid) {
+            const qr = `splitty:user:${user.uid}`;
+            setMyQrData(qr);
+            setMyQrImageUrl(null);
+        } else {
+            // fallback to backend user if auth not available
+            (async () => {
+                try {
+                    const me = await getCurrentUser();
+                    if (me && me.id) {
+                        const qr = `splitty:user:${me.id}`;
+                        setMyQrData(qr);
+                        const img = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`;
+                        setMyQrImageUrl(img);
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            })();
+        }
     }, []);
 
     useEffect(() => {
@@ -124,6 +154,62 @@ export default function Amigos({ navigation }: any) {
 
                         <TouchableOpacity onPress={() => setAddModalVisible(false)} style={{ alignItems: 'center', padding: 8 }}>
                             <Text style={{ color: colors.textMuted }}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal visible={myQrModalVisible} transparent animationType="fade" onRequestClose={() => setMyQrModalVisible(false)}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                    <View style={{ backgroundColor: colors.modalBackground, padding: 16, borderRadius: 12, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 }}>Mi código QR</Text>
+                        {myQrData ? (
+                            <View style={{ marginBottom: 12, alignItems: 'center' }}>
+                                <QRCode value={myQrData} size={220} />
+                            </View>
+                        ) : myQrImageUrl ? (
+                            <Image source={{ uri: myQrImageUrl }} style={{ width: 260, height: 260, marginBottom: 12 }} />
+                        ) : (
+                            <View style={{ width: 260, height: 260, backgroundColor: colors.cardBackground, marginBottom: 12, borderRadius: 8 }} />
+                        )}
+
+                        <Text style={{ color: colors.textSecondary, marginBottom: 12, textAlign: 'center' }}>Mostrá este código para que te agreguen como amigo. También podés compartir o copiar tu código.</Text>
+
+                        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
+                            <TouchableOpacity
+                                onPress={async () => {
+                                    try {
+                                        if (myQrData) {
+                                            await ExpoClipboard.setStringAsync(myQrData);
+                                            Alert.alert('Copiado', 'El código fue copiado al portapapeles');
+                                        }
+                                    } catch (e) {
+                                        Alert.alert('Error', 'No se pudo copiar');
+                                    }
+                                }}
+                                style={{ padding: 10, borderRadius: 8, backgroundColor: colors.cardBackground }}
+                            >
+                                <Text style={{ color: colors.text, fontWeight: '700' }}>Copiar</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={async () => {
+                                    try {
+                                        if (myQrData) {
+                                            await Share.share({ message: myQrData });
+                                        }
+                                    } catch (e) {
+                                        Alert.alert('Error', 'No se pudo compartir');
+                                    }
+                                }}
+                                style={{ padding: 10, borderRadius: 8, backgroundColor: colors.primary }}
+                            >
+                                <Text style={{ color: colors.primaryText, fontWeight: '700' }}>Compartir</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity onPress={() => setMyQrModalVisible(false)} style={{ padding: 12 }}>
+                            <Text style={{ color: colors.primary, fontWeight: '700' }}>Cerrar</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -242,6 +328,27 @@ export default function Amigos({ navigation }: any) {
                                 Agregar amigo
                             </Text>
                         </TouchableOpacity>
+
+                        {/* My QR: show a small preview and allow opening full-screen */}
+                        {(myQrData || myQrImageUrl) && (
+                            <View style={{ marginBottom: 16 }}>
+                                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8 }}>Mi código QR</Text>
+                                <TouchableOpacity onPress={() => setMyQrModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardBackground, padding: 12, borderRadius: 12 }}>
+                                    {myQrData ? (
+                                        <View style={{ width: 56, height: 56, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
+                                            <QRCode value={myQrData} size={56} />
+                                        </View>
+                                    ) : (
+                                        <Image source={{ uri: myQrImageUrl }} style={{ width: 56, height: 56, marginRight: 12 }} />
+                                    )}
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontWeight: '700', color: colors.text }}>Mostrar mi QR</Text>
+                                        <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Que otros puedan escanearme</Text>
+                                    </View>
+                                    <Feather name="chevron-right" size={20} color={colors.iconColor} />
+                                </TouchableOpacity>
+                            </View>
+                        )}
 
                         <View style={{ 
                             flexDirection: 'row', 

@@ -528,10 +528,16 @@ export default function PantallaPerfil({ navigation }: any) {
                 <ActivityIndicator size="large" color={colors.primary} />
               </View>
             ) : (
-              <Image
-                source={{ uri: profileImage }}
-                style={styles.profilePhoto}
-              />
+              profileImage ? (
+                <Image
+                  source={{ uri: profileImage }}
+                  style={styles.profilePhoto}
+                />
+              ) : (
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name="user" size={36} color={colors.text} />
+                </View>
+              )
             )}
           </TouchableOpacity>
           <TouchableOpacity
@@ -786,11 +792,18 @@ export default function PantallaPerfil({ navigation }: any) {
             onPress={(e) => e.stopPropagation()}
             style={styles.imageModalContent}
           >
-            <Image
-              source={{ uri: profileImage }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
+            {profileImage ? (
+              <Image
+                source={{ uri: profileImage }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={[styles.fullImage, { alignItems: 'center', justifyContent: 'center' }]}>
+                <Feather name="user" size={80} color={colors.textMuted} />
+                <Text style={{ color: colors.textSecondary, marginTop: 12 }}>Sin foto de perfil</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>

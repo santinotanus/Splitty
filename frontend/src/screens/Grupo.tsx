@@ -124,17 +124,27 @@ export default function Grupo({ route, navigation }: any) {
         padding: 16, 
         backgroundColor: colors.modalBackground,
         borderBottomWidth: 1,
-        borderBottomColor: colors.borderLight 
+        borderBottomColor: colors.borderLight,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between'
       }}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Feather name="arrow-left" size={24} color={colors.iconColor} />
         </TouchableOpacity>
-        <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, marginTop: 8 }}>
-          {emoji || (groupDetails?.emoji)} {nombre || (groupDetails?.nombre)}
-        </Text>
-        <Text style={{ color: colors.textSecondary, marginTop: 4 }}>
-          {groupDetails?.descripcion || ` ${members.length} miembros`}
-        </Text>
+
+        <View style={{ flex: 1, marginLeft: 12, marginRight: 12 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }} numberOfLines={1}>
+            {emoji || (groupDetails?.emoji)} {nombre || (groupDetails?.nombre)}
+          </Text>
+          <Text style={{ color: colors.textSecondary, marginTop: 4 }} numberOfLines={1}>
+            {groupDetails?.descripcion || ` ${members.length} miembros`}
+          </Text>
+        </View>
+
+        <TouchableOpacity onPress={() => navigation.navigate('ConfiguracionGrupo', { grupoId, nombre: nombre || groupDetails?.nombre, descripcion: groupDetails?.descripcion, emoji: emoji || groupDetails?.emoji })}>
+          <Feather name="settings" size={22} color={colors.iconColor} />
+        </TouchableOpacity>
       </View>
 
       {fromCache && !loading && (

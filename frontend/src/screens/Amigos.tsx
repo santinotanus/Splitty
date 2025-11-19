@@ -1,51 +1,80 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert, Image, Modal, TextInput } from 'react-native';
-import { Feather } from '@expo/vector-icons';
-import Header from '../components/Header';
-import OfflineBanner from '../components/OfflineBanner';
-import { useTheme } from '../contexts/ThemeContext';
-import { getCurrentUser } from '../api/client';
-import { useAuth } from '../contexts/AuthContext';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    Modal,
+    TouchableWithoutFeedback,
+    TextInput,
+    ActivityIndicator,
+    Alert,
+    RefreshControl,
+    Image,
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { Share } from 'react-native';
 import * as ExpoClipboard from 'expo-clipboard';
-import QRCode from 'react-native-qrcode-svg';
+import Header from '../components/Header';
+import OfflineBanner from '../components/OfflineBanner';
+import { useAmigos } from '../viewmodels/useAmigos';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useOfflineGuard } from '../hooks/useOfflineGuard';
 import { getFriendsOffline, getPendingRequestsOffline } from '../api/offlineApi';
-import { useAmigos } from '../viewmodels/useAmigos';
+import { getCurrentUser } from '../api/client';
 
-export default function Amigos({ navigation }: any) {
+const Amigos = ({ navigation }: any) => {
     const { colors } = useTheme();
     const { isOnline, guardOnlineAction } = useOfflineGuard();
 
+    const {
+        friends: onlineFriends,
+        loading: onlineLoading,
+        error,
+        addFriend,
+        inviteByEmail,
+        pendingRequests: onlinePendingRequests,
+        pendingLoading,
+        acceptPending,
+        rejectPending,
+        removeFriend,
+        refresh: refreshOnline,
+    } = useAmigos();
+
+    const { user } = useAuth();
+
+    // Estados locales
     const [friends, setFriends] = useState<any[]>([]);
     const [pendingRequests, setPendingRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [fromCache, setFromCache] = useState(false);
-    const [addModalVisible, setAddModalVisible] = useState(false);
-    const [searchEmail, setSearchEmail] = useState('');
-    const [myQrModalVisible, setMyQrModalVisible] = useState(false);
-    const [myQrData, setMyQrData] = useState<string | null>(null);
+
+    const [addFriendVisible, setAddFriendVisible] = useState(false);
+    const [myQRVisible, setMyQRVisible] = useState(false);
+    const [friendIdToAdd, setFriendIdToAdd] = useState('');
+    const [refreshing, setRefreshing] = useState(false);
+
+    // QR data
+    const qrValue = user ? `splitty:user:${user.uid}` : '';
     const [myQrImageUrl, setMyQrImageUrl] = useState<string | null>(null);
-    const { user } = useAuth();
 
-    // useAmigos provides online flows and helpers (add/invite/refresh)
-    const amigosVM = useAmigos();
-    const { friends: onlineFriends, loading: onlineLoading, refresh: refreshOnline, inviteByEmail, addFriend } = amigosVM;
-
+    // Función para cargar datos (online u offline)
     const loadData = async (forceRefresh = false) => {
         if (forceRefresh) setRefreshing(true);
         else setLoading(true);
 
         try {
             if (isOnline) {
-                // prefer online viewmodel data when online
+                // Usar datos online del viewmodel
                 const refreshed = await refreshOnline();
-                setFriends(refreshed || amigosVM.friends || []);
-                // pending requests come from the VM (use the hook's state)
-                setPendingRequests(amigosVM.pendingRequests || []);
+                setFriends(refreshed || onlineFriends || []);
+                setPendingRequests(onlinePendingRequests || []);
                 setFromCache(false);
             } else {
+                // Cargar datos offline
                 const friendsResult = await getFriendsOffline();
                 const pendingResult = await getPendingRequestsOffline();
 
@@ -61,22 +90,19 @@ export default function Amigos({ navigation }: any) {
         }
     };
 
+    // Cargar datos al montar
     useEffect(() => {
         loadData();
-        // prefer Firebase auth user for offline-ready QR
+
+        // Configurar QR fallback
         if (user && user.uid) {
-            const qr = `splitty:user:${user.uid}`;
-            setMyQrData(qr);
-            setMyQrImageUrl(null);
+            // Ya tenemos el QR en qrValue
         } else {
-            // fallback to backend user if auth not available
             (async () => {
                 try {
                     const me = await getCurrentUser();
                     if (me && me.id) {
-                        const qr = `splitty:user:${me.id}`;
-                        setMyQrData(qr);
-                        const img = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`;
+                        const img = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`splitty:user:${me.id}`)}`;
                         setMyQrImageUrl(img);
                     }
                 } catch (e) {
@@ -86,6 +112,7 @@ export default function Amigos({ navigation }: any) {
         }
     }, []);
 
+    // Recargar al volver a la pantalla si estamos online
     useEffect(() => {
         const unsubFocus = navigation.addListener('focus', () => {
             if (isOnline) loadData(true);
@@ -93,144 +120,166 @@ export default function Amigos({ navigation }: any) {
         return unsubFocus;
     }, [navigation, isOnline]);
 
-    const handleAddFriend = () => {
-        // show modal with options (search by email / scan QR)
+    // Función de refresco (Pull to Refresh)
+    const onRefresh = async () => {
+        if (isOnline) {
+            await loadData(true);
+        }
+    };
+
+    // Ir a la pantalla del escáner
+    const handleScanQR = () => {
+        if (!isOnline) {
+            guardOnlineAction(() => {}, 'Necesitas conexión para escanear QR');
+            return;
+        }
+        setAddFriendVisible(false);
+        navigation.navigate('EscanearAmigo');
+    };
+
+    // Lógica para agregar manual (por ID o Email)
+    const handleAddFriend = async () => {
         if (!isOnline) {
             guardOnlineAction(() => {}, 'Necesitas conexión para agregar amigos');
             return;
         }
-        setAddModalVisible(true);
+
+        const id = friendIdToAdd.trim();
+        if (!id) {
+            Alert.alert('Atención', 'Ingresá el ID o correo del amigo primero.');
+            return;
+        }
+
+        try {
+            // Si tiene arroba, asumimos que es email
+            if (id.includes('@')) {
+                await inviteByEmail(id);
+            } else {
+                await addFriend(id);
+            }
+
+            setFriendIdToAdd('');
+            setAddFriendVisible(false);
+            Alert.alert('Listo', 'Solicitud enviada correctamente');
+
+            // Recargar lista
+            await loadData(true);
+        } catch (err: any) {
+            console.error('Error al invitar/agregar amigo', err);
+
+            const msgCode = err?.response?.data?.error || err?.message || String(err);
+            let backendMsg = 'No se pudo agregar el amigo. Verificá el dato ingresado.';
+
+            if (msgCode === 'USER_NOT_FOUND' || msgCode === 'NOT_FOUND') {
+                backendMsg = 'No se encontró un usuario con ese correo/ID.';
+            } else if (msgCode === 'ALREADY_FRIENDS') {
+                backendMsg = 'Ya son amigos.';
+            } else if (msgCode === 'PENDING_REQUEST_EXISTS') {
+                backendMsg = 'Ya existe una solicitud pendiente.';
+            } else if (msgCode === 'CANNOT_REQUEST_SELF') {
+                backendMsg = 'No podés auto-invitarte.';
+            }
+
+            Alert.alert('Error', backendMsg);
+        }
     };
 
-    const handleInviteByEmail = async () => {
-        if (!searchEmail) return Alert.alert('Email vacío', 'Ingresá un email válido');
+    // Confirmar eliminación de amigo
+    const confirmDeleteFriend = (friend: any) => {
+        if (!isOnline) {
+            guardOnlineAction(() => {}, 'Necesitas conexión para eliminar amigos');
+            return;
+        }
+
+        Alert.alert(
+            'Eliminar amigo',
+            `¿Estás seguro de eliminar a ${friend.name}?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Eliminar',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await removeFriend(friend.id);
+                            await loadData(true);
+                        } catch (e) {
+                            Alert.alert('Error', 'No se pudo eliminar al amigo.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    // Aceptar solicitud
+    const handleAcceptPending = async (requestId: string) => {
+        if (!isOnline) {
+            guardOnlineAction(() => {}, 'Necesitas conexión para aceptar solicitudes');
+            return;
+        }
         try {
-            await inviteByEmail(searchEmail);
-            Alert.alert('Listo', 'Invitación enviada');
-            setAddModalVisible(false);
-            setSearchEmail('');
-            // refresh lists
-            const refreshed = await refreshOnline();
-            setFriends(refreshed || amigosVM.friends || []);
-        } catch (err: any) {
-            const msg = err?.message || err?.response?.data?.error || 'Error';
-            Alert.alert('Error', msg.toString());
+            await acceptPending(requestId);
+            await loadData(true);
+        } catch (e) {
+            Alert.alert('Error', 'No se pudo aceptar la solicitud.');
+        }
+    };
+
+    // Rechazar solicitud
+    const handleRejectPending = async (requestId: string) => {
+        if (!isOnline) {
+            guardOnlineAction(() => {}, 'Necesitas conexión para rechazar solicitudes');
+            return;
+        }
+        try {
+            await rejectPending(requestId);
+            await loadData(true);
+        } catch (e) {
+            Alert.alert('Error', 'No se pudo rechazar la solicitud.');
+        }
+    };
+
+    // Copiar código QR
+    const handleCopyQR = async () => {
+        try {
+            if (qrValue) {
+                await ExpoClipboard.setStringAsync(qrValue);
+                Alert.alert('Copiado', 'El código fue copiado al portapapeles');
+            }
+        } catch (e) {
+            Alert.alert('Error', 'No se pudo copiar');
+        }
+    };
+
+    // Compartir código QR
+    const handleShareQR = async () => {
+        try {
+            if (qrValue) {
+                await Share.share({ message: qrValue });
+            }
+        } catch (e) {
+            Alert.alert('Error', 'No se pudo compartir');
         }
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={[styles.container, { backgroundColor: colors.background }]}>
+            {/* Banner offline */}
             <OfflineBanner />
+
             <Header navigation={navigation} variant="amigos" />
 
-            <Modal visible={addModalVisible} transparent animationType="slide">
-                <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-                    <View style={{ backgroundColor: colors.modalBackground, padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
-                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 }}>Agregar amigo</Text>
-
-                        <TextInput
-                            placeholder="Buscar por email"
-                            placeholderTextColor={colors.textMuted}
-                            value={searchEmail}
-                            onChangeText={setSearchEmail}
-                            style={{ backgroundColor: colors.cardBackground, padding: 12, borderRadius: 8, color: colors.text, marginBottom: 8 }}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
-                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                            <TouchableOpacity
-                                style={{ flex: 1, backgroundColor: colors.primary, padding: 12, borderRadius: 8, alignItems: 'center' }}
-                                onPress={handleInviteByEmail}
-                            >
-                                <Text style={{ color: colors.primaryText, fontWeight: '600' }}>Invitar amigo</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={{ flex: 1, backgroundColor: colors.cardBackground, padding: 12, borderRadius: 8, alignItems: 'center' }}
-                                onPress={() => { setAddModalVisible(false); navigation.navigate('EscanearAmigo'); }}
-                            >
-                                <Text style={{ color: colors.text }}>Escanear QR</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <TouchableOpacity onPress={() => setAddModalVisible(false)} style={{ alignItems: 'center', padding: 8 }}>
-                            <Text style={{ color: colors.textMuted }}>Cancelar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-
-            <Modal visible={myQrModalVisible} transparent animationType="fade" onRequestClose={() => setMyQrModalVisible(false)}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-                    <View style={{ backgroundColor: colors.modalBackground, padding: 16, borderRadius: 12, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 }}>Mi código QR</Text>
-                        {myQrData ? (
-                            <View style={{ marginBottom: 12, alignItems: 'center' }}>
-                                <QRCode value={myQrData} size={220} />
-                            </View>
-                        ) : myQrImageUrl ? (
-                            <Image source={{ uri: myQrImageUrl }} style={{ width: 260, height: 260, marginBottom: 12 }} />
-                        ) : (
-                            <View style={{ width: 260, height: 260, backgroundColor: colors.cardBackground, marginBottom: 12, borderRadius: 8 }} />
-                        )}
-
-                        <Text style={{ color: colors.textSecondary, marginBottom: 12, textAlign: 'center' }}>Mostrá este código para que te agreguen como amigo. También podés compartir o copiar tu código.</Text>
-
-                        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 8 }}>
-                            <TouchableOpacity
-                                onPress={async () => {
-                                    try {
-                                        if (myQrData) {
-                                            await ExpoClipboard.setStringAsync(myQrData);
-                                            Alert.alert('Copiado', 'El código fue copiado al portapapeles');
-                                        }
-                                    } catch (e) {
-                                        Alert.alert('Error', 'No se pudo copiar');
-                                    }
-                                }}
-                                style={{ padding: 10, borderRadius: 8, backgroundColor: colors.cardBackground }}
-                            >
-                                <Text style={{ color: colors.text, fontWeight: '700' }}>Copiar</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                onPress={async () => {
-                                    try {
-                                        if (myQrData) {
-                                            await Share.share({ message: myQrData });
-                                        }
-                                    } catch (e) {
-                                        Alert.alert('Error', 'No se pudo compartir');
-                                    }
-                                }}
-                                style={{ padding: 10, borderRadius: 8, backgroundColor: colors.primary }}
-                            >
-                                <Text style={{ color: colors.primaryText, fontWeight: '700' }}>Compartir</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <TouchableOpacity onPress={() => setMyQrModalVisible(false)} style={{ padding: 12 }}>
-                            <Text style={{ color: colors.primary, fontWeight: '700' }}>Cerrar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-
+            {/* Banner de caché cuando hay datos offline */}
             {fromCache && !loading && (
-                <View style={{ 
-                    backgroundColor: colors.successLight, 
-                    padding: 8, 
-                    alignItems: 'center',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                    gap: 8
-                }}>
-                    <Feather name="database" size={14} color={colors.success} />
-                    <Text style={{ color: colors.success, fontSize: 12, fontWeight: '600' }}>
+                <View style={[styles.cacheBanner, { backgroundColor: colors.successLight }]}>
+                    <Ionicons name="cloud-offline-outline" size={14} color={colors.success} />
+                    <Text style={[styles.cacheBannerText, { color: colors.success }]}>
                         Datos guardados localmente
                     </Text>
                     {isOnline && (
                         <TouchableOpacity onPress={() => loadData(true)}>
-                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>
+                            <Text style={[styles.cacheBannerButton, { color: colors.primary }]}>
                                 Actualizar
                             </Text>
                         </TouchableOpacity>
@@ -238,65 +287,84 @@ export default function Amigos({ navigation }: any) {
                 </View>
             )}
 
-            <FlatList
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={() => isOnline ? loadData(true) : null}
-                        enabled={isOnline}
-                    />
-                }
-                ListHeaderComponent={
-                    <View style={{ padding: 16 }}>
-                        {pendingRequests.length > 0 && (
-                            <View style={{ marginBottom: 24 }}>
-                                <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 12 }}>
-                                    Solicitudes recibidas ({pendingRequests.length})
-                                </Text>
-                                {pendingRequests.map((request: any) => (
-                                    <View
-                                        key={request.id}
-                                        style={{
-                                            backgroundColor: colors.modalBackground,
-                                            padding: 12,
-                                            borderRadius: 12,
-                                            marginBottom: 8,
-                                            flexDirection: 'row',
-                                            alignItems: 'center',
-                                            justifyContent: 'space-between'
-                                        }}
-                                    >
+            {/* Estado de carga inicial (solo si no estamos refrescando) */}
+            {loading && !refreshing ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+            ) : error && isOnline ? (
+                <ScrollView
+                    contentContainerStyle={styles.center}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+                    }
+                >
+                    <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+                    <TouchableOpacity onPress={onRefresh} style={{ marginTop: 12 }}>
+                        <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Toca para reintentar</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            ) : (
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            enabled={isOnline}
+                            colors={[colors.primary]}
+                            tintColor={colors.primary}
+                        />
+                    }
+                >
+                    {/* SECCIÓN 1: Solicitudes Recibidas */}
+                    {pendingLoading && !refreshing ? (
+                        <View style={{ paddingVertical: 12 }}>
+                            <ActivityIndicator color={colors.primary} />
+                        </View>
+                    ) : (
+                        pendingRequests.length > 0 && (
+                            <View style={{ marginBottom: 16 }}>
+                                <Text style={[styles.sectionTitle, { color: colors.text }]}>Solicitudes recibidas</Text>
+                                {pendingRequests.map((s: any) => (
+                                    <View key={s.id} style={[styles.requestCard, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+                                        <View style={styles.friendAvatarWrapper}>
+                                            {s.solicitanteFotoUrl ? (
+                                                <Image
+                                                    source={{ uri: s.solicitanteFotoUrl }}
+                                                    style={[styles.avatarImage, { backgroundColor: colors.borderLight }]}
+                                                />
+                                            ) : (
+                                                <View style={[styles.avatarCircleSmall, { backgroundColor: colors.emojiCircle }]}>
+                                                    <Text style={[styles.avatarInitialSmall, { color: colors.text }]}>
+                                                        {(s.solicitanteNombre || '?').charAt(0).toUpperCase()}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
+
                                         <View style={{ flex: 1 }}>
                                             <Text style={{ fontWeight: '600', color: colors.text }}>
-                                                {request.solicitanteNombre}
+                                                {s.solicitanteNombre || 'Usuario'}
                                             </Text>
                                             <Text style={{ color: colors.textSecondary }}>
-                                                {request.solicitanteCorreo}
+                                                {s.solicitanteCorreo || ''}
                                             </Text>
                                         </View>
+
                                         {isOnline ? (
                                             <View style={{ flexDirection: 'row', gap: 8 }}>
                                                 <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: colors.primary,
-                                                        paddingHorizontal: 12,
-                                                        paddingVertical: 6,
-                                                        borderRadius: 8
-                                                    }}
-                                                    onPress={() => {/* Aceptar */}}
+                                                    style={[styles.acceptButton, { backgroundColor: colors.primary }]}
+                                                    onPress={() => handleAcceptPending(s.id)}
                                                 >
-                                                    <Text style={{ color: colors.primaryText, fontSize: 12 }}>Aceptar</Text>
+                                                    <Text style={{ color: '#FFF' }}>Aceptar</Text>
                                                 </TouchableOpacity>
                                                 <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: colors.cardBackground,
-                                                        paddingHorizontal: 12,
-                                                        paddingVertical: 6,
-                                                        borderRadius: 8
-                                                    }}
-                                                    onPress={() => {/* Rechazar */}}
+                                                    style={[styles.rejectButton, { backgroundColor: colors.cardBackground }]}
+                                                    onPress={() => handleRejectPending(s.id)}
                                                 >
-                                                    <Text style={{ color: colors.text, fontSize: 12 }}>Rechazar</Text>
+                                                    <Text style={{ color: colors.text }}>Rechazar</Text>
                                                 </TouchableOpacity>
                                             </View>
                                         ) : (
@@ -307,115 +375,539 @@ export default function Amigos({ navigation }: any) {
                                     </View>
                                 ))}
                             </View>
-                        )}
+                        )
+                    )}
 
-                        <TouchableOpacity
-                            style={{
+                    {/* SECCIÓN 2: Botones de Acción */}
+                    <TouchableOpacity
+                        style={[
+                            styles.primaryButton,
+                            {
                                 backgroundColor: isOnline ? colors.primary : colors.textMuted,
-                                padding: 14,
-                                borderRadius: 12,
-                                marginBottom: 24,
-                                opacity: isOnline ? 1 : 0.5,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 8
-                            }}
-                            onPress={handleAddFriend}
-                        >
-                            <Feather name="user-plus" size={18} color={colors.primaryText} />
-                            <Text style={{ color: colors.primaryText, fontWeight: '600' }}>
-                                Agregar amigo
-                            </Text>
-                        </TouchableOpacity>
+                                opacity: isOnline ? 1 : 0.5
+                            }
+                        ]}
+                        onPress={() => setMyQRVisible(true)}
+                    >
+                        <MaterialCommunityIcons
+                            name="qrcode"
+                            size={20}
+                            color="#FFFFFF"
+                            style={{ marginRight: 8 }}
+                        />
+                        <Text style={styles.primaryButtonText}>Mi código QR</Text>
+                    </TouchableOpacity>
 
-                        {/* My QR: show a small preview and allow opening full-screen */}
-                        {(myQrData || myQrImageUrl) && (
-                            <View style={{ marginBottom: 16 }}>
-                                <Text style={{ fontSize: 14, color: colors.textSecondary, marginBottom: 8 }}>Mi código QR</Text>
-                                <TouchableOpacity onPress={() => setMyQrModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardBackground, padding: 12, borderRadius: 12 }}>
-                                    {myQrData ? (
-                                        <View style={{ width: 56, height: 56, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
-                                            <QRCode value={myQrData} size={56} />
-                                        </View>
-                                    ) : (
-                                        <Image source={{ uri: myQrImageUrl }} style={{ width: 56, height: 56, marginRight: 12 }} />
-                                    )}
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ fontWeight: '700', color: colors.text }}>Mostrar mi QR</Text>
-                                        <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Que otros puedan escanearme</Text>
+                    <TouchableOpacity
+                        style={[
+                            styles.secondaryButton,
+                            {
+                                backgroundColor: colors.modalBackground,
+                                borderColor: colors.borderLight,
+                                opacity: isOnline ? 1 : 0.5
+                            }
+                        ]}
+                        onPress={() => {
+                            if (!isOnline) {
+                                guardOnlineAction(() => {}, 'Necesitas conexión para agregar amigos');
+                                return;
+                            }
+                            setAddFriendVisible(true);
+                        }}
+                    >
+                        <Ionicons
+                            name="person-add-outline"
+                            size={18}
+                            color={colors.text}
+                            style={{ marginRight: 8 }}
+                        />
+                        <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Agregar amigo</Text>
+                    </TouchableOpacity>
+
+                    {/* SECCIÓN 3: Lista de Amigos */}
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: colors.text }]}>Mis amigos</Text>
+                        <View style={[styles.badge, { backgroundColor: colors.badgeBackground }]}>
+                            <Text style={[styles.badgeText, { color: colors.badgeText }]}>{friends.length} amigos</Text>
+                        </View>
+                    </View>
+
+                    {friends.map((friend: any) => (
+                        <View key={friend.id} style={[styles.friendCard, { backgroundColor: colors.modalBackground, borderColor: colors.borderLight }]}>
+                            <View style={styles.friendRow}>
+                                <View style={styles.friendLeft}>
+                                    <View style={styles.friendAvatarWrapper}>
+                                        {friend.foto_url ? (
+                                            <Image
+                                                source={{ uri: friend.foto_url }}
+                                                style={[styles.avatarImage, { backgroundColor: colors.borderLight }]}
+                                            />
+                                        ) : (
+                                            <View style={[styles.avatarCircleSmall, { backgroundColor: colors.emojiCircle }]}>
+                                                <Text style={[styles.avatarInitialSmall, { color: colors.text }]}>
+                                                    {(friend.name || '?').charAt(0).toUpperCase()}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        {friend.online && <View style={styles.onlineDot} />}
                                     </View>
-                                    <Feather name="chevron-right" size={20} color={colors.iconColor} />
+
+                                    <View>
+                                        <Text style={[styles.friendName, { color: colors.text }]}>{friend.name}</Text>
+                                        <Text style={[styles.friendSubtitle, { color: colors.textSecondary }]}>
+                                            {friend.groupsInCommon} grupo
+                                            {friend.groupsInCommon !== 1 && 's'} en común
+                                        </Text>
+                                        {friend.groupsNames && friend.groupsNames.length > 0 && (
+                                            <Text
+                                                style={{
+                                                    color: colors.textMuted,
+                                                    marginTop: 4,
+                                                    fontSize: 12,
+                                                }}
+                                            >
+                                                {friend.groupsNames.join(', ')}
+                                            </Text>
+                                        )}
+                                    </View>
+                                </View>
+
+                                {/* Botón Eliminar */}
+                                <TouchableOpacity
+                                    onPress={() => confirmDeleteFriend(friend)}
+                                    style={{ padding: 8 }}
+                                    disabled={!isOnline}
+                                >
+                                    <Ionicons
+                                        name="trash-outline"
+                                        size={20}
+                                        color={isOnline ? colors.iconColor : colors.textMuted}
+                                    />
                                 </TouchableOpacity>
                             </View>
-                        )}
-
-                        <View style={{ 
-                            flexDirection: 'row', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center',
-                            marginBottom: 12 
-                        }}>
-                            <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>
-                                Mis amigos
-                            </Text>
-                            <View style={{
-                                backgroundColor: colors.badgeBackground,
-                                paddingHorizontal: 10,
-                                paddingVertical: 4,
-                                borderRadius: 12
-                            }}>
-                                <Text style={{ fontSize: 12, fontWeight: '600', color: colors.badgeText }}>
-                                    {friends.length} amigos
-                                </Text>
-                            </View>
                         </View>
-                    </View>
-                }
-                data={friends}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                    <View style={{
-                        backgroundColor: colors.modalBackground,
-                        marginHorizontal: 16,
-                        marginBottom: 12,
-                        padding: 14,
-                        borderRadius: 12,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                    }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                            {item.foto_url ? (
-                                <Image
-                                    source={{ uri: item.foto_url }}
-                                    style={{ width: 48, height: 48, borderRadius: 24, marginRight: 12 }}
-                                />
-                            ) : (
-                                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.emojiCircle, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
-                                    <Feather name="user" size={20} color={colors.primaryText} />
-                                </View>
-                            )}
+                    ))}
 
-                            <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>{item.name || item.nombre}</Text>
-                                <Text style={{ fontSize: 13, color: colors.textSecondary, marginTop: 2 }}>
-                                    {item.groupsInCommon ?? 0} grupos en común
-                                </Text>
-                            </View>
-                        </View>
-                        <Feather name="chevron-right" size={20} color={colors.iconColor} />
-                    </View>
-                )}
-                ListEmptyComponent={
-                    <View style={{ padding: 32, alignItems: 'center' }}>
-                        <Feather name="users" size={48} color={colors.textMuted} />
-                        <Text style={{ color: colors.textMuted, marginTop: 16 }}>
-                            {isOnline ? 'No tienes amigos aún' : 'Sin amigos guardados'}
+                    {friends.length === 0 && (
+                        <Text style={[styles.emptyFilteredText, { color: colors.textMuted }]}>
+                            {isOnline ? 'Todavía no tenés amigos agregados.' : 'Sin amigos guardados'}
                         </Text>
+                    )}
+                </ScrollView>
+            )}
+
+            {/* MODAL: Agregar amigo */}
+            <Modal
+                visible={addFriendVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setAddFriendVisible(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setAddFriendVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableWithoutFeedback>
+                            <View style={[styles.addFriendCard, { backgroundColor: colors.modalBackground }]}>
+                                <View style={styles.addFriendHeader}>
+                                    <Text style={[styles.addFriendTitle, { color: colors.text }]}>Agregar amigo</Text>
+                                    <TouchableOpacity
+                                        onPress={() => setAddFriendVisible(false)}
+                                    >
+                                        <Ionicons name="close" size={20} color={colors.iconColor} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={[styles.searchInputWrapper, { borderColor: colors.border, backgroundColor: colors.cardBackground }]}>
+                                    <Ionicons
+                                        name="search"
+                                        size={18}
+                                        color={colors.iconColor}
+                                        style={{ marginRight: 8 }}
+                                    />
+                                    <TextInput
+                                        style={[styles.searchInput, { color: colors.text }]}
+                                        placeholder="Ingresar correo o ID del amigo..."
+                                        placeholderTextColor={colors.textMuted}
+                                        value={friendIdToAdd}
+                                        onChangeText={setFriendIdToAdd}
+                                        autoCapitalize="none"
+                                    />
+                                </View>
+
+                                <View style={styles.addFriendButtonsRow}>
+                                    <TouchableOpacity
+                                        style={[styles.scanButton, { backgroundColor: colors.cardBackground }]}
+                                        onPress={handleScanQR}
+                                    >
+                                        <Ionicons
+                                            name="qr-code-outline"
+                                            size={18}
+                                            color={colors.text}
+                                            style={{ marginRight: 6 }}
+                                        />
+                                        <Text style={[styles.scanButtonText, { color: colors.text }]}>Escanear QR</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.confirmAddButton, { backgroundColor: colors.primary }]}
+                                        onPress={handleAddFriend}
+                                    >
+                                        <Text style={styles.confirmAddButtonText}>Agregar</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </TouchableWithoutFeedback>
                     </View>
-                }
-            />
+                </TouchableWithoutFeedback>
+            </Modal>
+
+            {/* MODAL: Mi código QR */}
+            <Modal
+                visible={myQRVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setMyQRVisible(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setMyQRVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableWithoutFeedback>
+                            <View style={[styles.qrCard, { backgroundColor: colors.modalBackground }]}>
+                                <View style={styles.qrHeader}>
+                                    <Text style={[styles.addFriendTitle, { color: colors.text }]}>Mi código QR</Text>
+                                    <TouchableOpacity onPress={() => setMyQRVisible(false)}>
+                                        <Ionicons name="close" size={20} color={colors.iconColor} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={[styles.qrPlaceholder, { backgroundColor: colors.cardBackground }]}>
+                                    {qrValue ? (
+                                        <QRCode value={qrValue} size={140} />
+                                    ) : myQrImageUrl ? (
+                                        <Image source={{ uri: myQrImageUrl }} style={{ width: 140, height: 140 }} />
+                                    ) : (
+                                        <MaterialCommunityIcons
+                                            name="qrcode"
+                                            size={64}
+                                            color={colors.iconColor}
+                                        />
+                                    )}
+                                </View>
+
+                                <Text style={[styles.qrUserName, { color: colors.text }]}>
+                                    {user?.displayName || user?.email || 'Tu Usuario'}
+                                </Text>
+
+                                <Text style={[styles.qrHelpText, { color: colors.textSecondary }]}>
+                                    Comparte este código para que otros puedan agregarte como amigo
+                                </Text>
+
+                                {/* Botones Copiar y Compartir */}
+                                <View style={styles.qrButtonsRow}>
+                                    <TouchableOpacity
+                                        onPress={handleCopyQR}
+                                        style={[styles.qrActionButton, { backgroundColor: colors.cardBackground }]}
+                                    >
+                                        <Ionicons name="copy-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                                        <Text style={[styles.qrActionButtonText, { color: colors.text }]}>Copiar</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={handleShareQR}
+                                        style={[styles.qrActionButton, { backgroundColor: colors.primary }]}
+                                    >
+                                        <Ionicons name="share-outline" size={18} color="#FFF" style={{ marginRight: 6 }} />
+                                        <Text style={[styles.qrActionButtonText, { color: '#FFF' }]}>Compartir</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 24,
+    },
+    cacheBanner: {
+        padding: 8,
+        alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    cacheBannerText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    cacheBannerButton: {
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorText: {},
+    emptyFilteredText: {
+        textAlign: 'center',
+        marginTop: 16,
+    },
+
+    primaryButton: {
+        borderRadius: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    primaryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    secondaryButton: {
+        borderRadius: 14,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+        borderWidth: 1,
+    },
+    secondaryButtonText: {
+        fontSize: 15,
+        fontWeight: '500',
+    },
+
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    badge: {
+        borderRadius: 999,
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+    },
+    badgeText: {
+        fontSize: 12,
+    },
+
+    friendCard: {
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+    },
+    friendRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    friendLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    friendAvatarWrapper: {
+        marginRight: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarCircleSmall: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarImage: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+    },
+    avatarInitialSmall: {
+        fontWeight: '700',
+    },
+    onlineDot: {
+        position: 'absolute',
+        bottom: 2,
+        right: 2,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#1ECD4E',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+    },
+    friendName: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    friendSubtitle: {
+        fontSize: 13,
+        marginTop: 2,
+    },
+
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.25)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+    },
+    addFriendCard: {
+        width: '100%',
+        borderRadius: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+    },
+    addFriendHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    addFriendTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    searchInputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 12,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginBottom: 12,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 14,
+    },
+    addFriendButtonsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 4,
+    },
+    scanButton: {
+        flex: 1,
+        marginRight: 8,
+        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    scanButtonText: {
+        fontWeight: '500',
+        fontSize: 14,
+    },
+    confirmAddButton: {
+        flex: 1,
+        marginLeft: 8,
+        borderRadius: 10,
+        paddingVertical: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    confirmAddButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+
+    qrCard: {
+        width: '100%',
+        borderRadius: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 20,
+        alignItems: 'center',
+    },
+    qrHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignSelf: 'stretch',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    qrPlaceholder: {
+        width: 160,
+        height: 160,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    qrUserName: {
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 4,
+    },
+    qrHelpText: {
+        fontSize: 13,
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    qrButtonsRow: {
+        flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    qrActionButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        borderRadius: 10,
+    },
+    qrActionButtonText: {
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    requestCard: {
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    acceptButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        marginRight: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rejectButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+});
+
+export default Amigos;

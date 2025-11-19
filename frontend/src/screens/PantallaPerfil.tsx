@@ -502,18 +502,8 @@ export default function PantallaPerfil({ navigation }: any) {
           <Feather name="arrow-left" size={24} color={colors.iconColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Perfil</Text>
-        {/* Mostrar foto pequeña en la esquina superior derecha cuando hay conexión */}
-        <View>
-          {Boolean(isConnected && (isInternetReachable === null || isInternetReachable === undefined ? true : isInternetReachable)) ? (
-            <TouchableOpacity onPress={() => setShowImageModal(true)} disabled={profileLoading}>
-              <Image source={{ uri: profileImage }} style={{ width: 36, height: 36, borderRadius: 18 }} />
-            </TouchableOpacity>
-          ) : (
-            <View style={{ width: 36 }} />
-          )}
-        </View>
+        <View style={{ width: 36 }} />
       </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Profile Photo Section */}
         <View style={styles.photoSection}>

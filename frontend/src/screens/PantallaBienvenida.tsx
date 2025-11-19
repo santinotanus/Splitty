@@ -4,59 +4,41 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PantallaBienvenida({ navigation }: any) {
 	return (
-		<SafeAreaView 
+		<SafeAreaView
 			style={{
 				flex: 1,
 				backgroundColor: "#FFFFFF",
 			}}>
-			<ScrollView  
+			<ScrollView
 				style={{
 					flex: 1,
 					backgroundColor: "#E6F4F1",
 				}}>
-				<View 
+				<View
 					style={{
 						marginVertical: 167,
 						marginHorizontal: 14,
 					}}>
-					<View 
-						style={{
-							alignItems: "center",
-							marginBottom: 32,
-						}}>
-						<TouchableOpacity 
-							style={{
-								backgroundColor: "#CB78001A",
-								borderRadius: 24,
-								padding: 28,
-							}} onPress={()=>alert('Pressed!')}>
-							<Image
-								source = {{uri: "https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/b005ad8e-2840-4d20-bfa2-9d7235aea6b9"}} 
-								resizeMode = {"stretch"}
-								style={{
-									borderRadius: 24,
-									width: 40,
-									height: 40,
-								}}
-							/>
-						</TouchableOpacity>
-					</View>
-					<View 
+					<View
+                        style={{
+                            alignItems: "center",
+                            marginBottom: 32,
+                        }}>
+                        <Image
+                            source={require('../../assets/splittyLogo.png')}
+                            resizeMode={"contain"}
+                            style={{
+                                width: 200,
+                                height: 200,
+                            }}
+                        />
+                    </View>
+					<View
 						style={{
 							marginBottom: 32,
 						}}>
-						<Text 
-							style={{
-								color: "#212121",
-								fontSize: 30,
-								fontWeight: "bold",
-								textAlign: "center",
-								marginBottom: 12,
-								marginHorizontal: 46,
-							}}>
-							{"Bienvenido a Splitty"}
-						</Text>
-						<Text 
+
+						<Text
 							style={{
 								color: "#555555",
 								fontSize: 18,
@@ -66,19 +48,19 @@ export default function PantallaBienvenida({ navigation }: any) {
 							{"Gestiona tus gastos compartidos de forma\nsencilla y transparente"}
 						</Text>
 					</View>
-					<View 
+					<View
 						style={{
 							paddingTop: 24,
 							paddingBottom: 40,
 							marginBottom: 32,
 						}}>
-						<View 
+						<View
 							style={{
 								flexDirection: "row",
 								alignItems: "center",
 								marginBottom: 16,
 							}}>
-							<View 
+							<View
 								style={{
 									width: 8,
 									height: 8,
@@ -87,12 +69,12 @@ export default function PantallaBienvenida({ navigation }: any) {
 									marginRight: 12,
 								}}>
 							</View>
-							<View 
+							<View
 								style={{
 									alignItems: "center",
 									paddingBottom: 1,
 								}}>
-								<Text 
+								<Text
 									style={{
 										color: "#555555",
 										fontSize: 14,
@@ -101,13 +83,13 @@ export default function PantallaBienvenida({ navigation }: any) {
 								</Text>
 							</View>
 						</View>
-						<View 
+						<View
 							style={{
 								flexDirection: "row",
 								alignItems: "center",
 								marginBottom: 16,
 							}}>
-							<View 
+							<View
 								style={{
 									width: 8,
 									height: 8,
@@ -116,12 +98,12 @@ export default function PantallaBienvenida({ navigation }: any) {
 									marginRight: 12,
 								}}>
 							</View>
-							<View 
+							<View
 								style={{
 									alignItems: "center",
 									paddingBottom: 1,
 								}}>
-								<Text 
+								<Text
 									style={{
 										color: "#555555",
 										fontSize: 14,
@@ -130,12 +112,12 @@ export default function PantallaBienvenida({ navigation }: any) {
 								</Text>
 							</View>
 						</View>
-						<View 
+						<View
 							style={{
 								flexDirection: "row",
 								alignItems: "center",
 							}}>
-							<View 
+							<View
 								style={{
 									width: 8,
 									height: 8,
@@ -144,12 +126,12 @@ export default function PantallaBienvenida({ navigation }: any) {
 									marginRight: 12,
 								}}>
 							</View>
-							<View 
+							<View
 								style={{
 									alignItems: "center",
 									paddingBottom: 1,
 								}}>
-								<Text 
+								<Text
 									style={{
 										color: "#555555",
 										fontSize: 14,
@@ -159,7 +141,7 @@ export default function PantallaBienvenida({ navigation }: any) {
 							</View>
 						</View>
 					</View>
-					<TouchableOpacity 
+					<TouchableOpacity
 						style={{
 							alignItems: "center",
 							backgroundColor: "#033E30",
@@ -175,7 +157,7 @@ export default function PantallaBienvenida({ navigation }: any) {
 							shadowRadius: 6,
 							elevation: 6,
 						}} onPress={() => navigation.navigate('InicioSesion')}>
-						<Text 
+						<Text
 							style={{
 								color: "#FFFFFF",
 								fontSize: 18,
@@ -184,12 +166,12 @@ export default function PantallaBienvenida({ navigation }: any) {
 							{"Comenzar"}
 						</Text>
 					</TouchableOpacity>
-					<View 
+					<View
 						style={{
 							alignItems: "center",
 							paddingTop: 24,
 						}}>
-						<Text 
+						<Text
 							style={{
 								color: "#555555",
 								fontSize: 12,

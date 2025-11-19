@@ -52,16 +52,20 @@ export default function InicioSesion({ navigation }: any) {
         style={styles.keyboardAvoidingView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <View style={styles.iconContainer}>
-            <View style={styles.iconBackground}>
-              <Image
-                source={{ uri: "https://cdn-icons-png.flaticon.com/512/2921/2921222.png" }}
-                style={styles.iconImage}
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-          <Text style={styles.title}>Splitty</Text>
+          <View
+                                  style={{
+                                      alignItems: "center",
+                                      marginBottom: 5,
+                                  }}>
+                                  <Image
+                                      source={require('../../assets/splittyLogo.png')}
+                                      resizeMode={"contain"}
+                                      style={{
+                                          width: 200,
+                                          height: 200,
+                                      }}
+                                  />
+                              </View>
           <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
 
           <View style={styles.formContainer}>

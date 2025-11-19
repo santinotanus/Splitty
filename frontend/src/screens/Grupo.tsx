@@ -296,22 +296,50 @@ export default function Grupo({ route, navigation }: any) {
                   data={debts}
                   keyExtractor={(d) => d.id || String(d.debtId || Math.random())}
                   renderItem={({ item }) => (
-                    <TouchableOpacity
-                      activeOpacity={0.85}
-                      onPress={() => guardOnlineAction(() => navigation.navigate('DebtDetail', { debt: item, grupoId }), 'Necesitas conexión para ver la deuda')}
-                      style={{ marginBottom: 12 }}
-                    >
-                      <View style={{ backgroundColor: colors.cardBackground, padding: 16, borderRadius: 12 }}>
-                        <Text style={{ fontWeight: '700', color: colors.text, fontSize: 15 }}>{item.gastoDescripcion || item.descripcion || item.concepto || 'Motivo'}</Text>
-                        <Text style={{ color: colors.textSecondary, marginTop: 6 }}>A: {item.haciaUsuarioNombre || item.acreedorNombre || item.usuarioNombre || item.deudorNombre || '—'}</Text>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                          <Text style={{ fontWeight: '700', fontSize: 16 }}>${Number(item.importe || item.monto || 0).toFixed(2)}</Text>
-                          <View style={{ backgroundColor: colors.primary, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 }}>
-                            <Text style={{ color: colors.primaryText, fontWeight: '700' }}>Ver / Pagar</Text>
-                          </View>
-                        </View>
+                    <View style={{ 
+                      backgroundColor: colors.cardBackground, 
+                      padding: 16, 
+                      borderRadius: 12, 
+                      marginBottom: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center'
+                    }}>
+                      <View style={{ 
+                        width: 40, 
+                        height: 40, 
+                        borderRadius: 20, 
+                        backgroundColor: colors.error,
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Feather name="arrow-up-right" size={20} color={colors.primaryText} />
                       </View>
-                    </TouchableOpacity>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={{ fontWeight: '700', color: colors.text, fontSize: 15, marginBottom: 2 }}>
+                          {item.haciaUsuarioNombre || item.acreedorNombre || item.usuarioNombre || item.deudorNombre || '—'}
+                        </Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 4 }}>
+                          {item.gastoDescripcion || item.descripcion || item.concepto || 'Pago pendiente'}
+                        </Text>
+                        <Text style={{ fontWeight: '700', fontSize: 16, color: colors.error }}>
+                          ${Number(item.importe || item.monto || 0).toFixed(2)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={{ 
+                          backgroundColor: colors.primary, 
+                          paddingHorizontal: 20, 
+                          paddingVertical: 12, 
+                          borderRadius: 8,
+                          minWidth: 80,
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        onPress={() => guardOnlineAction(() => navigation.navigate('DebtDetail', { debt: item, grupoId }), 'Necesitas conexión para ver la deuda')}
+                      >
+                        <Text style={{ color: colors.primaryText, fontWeight: '700', fontSize: 15 }}>Pagar</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                 />
               )}

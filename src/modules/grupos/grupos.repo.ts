@@ -79,29 +79,57 @@ export async function countMembers(grupoId: string) {
 export async function deleteGroup(grupoId: string) {
   // Eliminar en orden correcto para respetar las foreign keys
   return db.transaction(async (trx) => {
-    // 1. Eliminar saldos_grupo (depende de miembros_grupo)
-    await trx('dbo.saldos_grupo').where({ grupo_id: grupoId }).delete();
+    console.log(`🗑️ Iniciando eliminación del grupo ${grupoId}`);
+    
+    try {
+      // 1. Eliminar saldos_grupo (depende de miembros_grupo)
+      console.log('1. Eliminando saldos_grupo...');
+      const saldosDeleted = await trx('dbo.saldos_grupo').where({ grupo_id: grupoId }).delete();
+      console.log(`   ✅ ${saldosDeleted} registros eliminados de saldos_grupo`);
 
-    // 2. Eliminar saldos_comprobantes (depende de miembros_grupo, pero tiene CASCADE)
-    await trx('dbo.saldos_comprobantes').where({ grupo_id: grupoId }).delete();
+      // 2. Eliminar saldos_comprobantes (depende de miembros_grupo)
+      console.log('2. Eliminando saldos_comprobantes...');
+      const comprobantesDeleted = await trx('dbo.saldos_comprobantes').where({ grupo_id: grupoId }).delete();
+      console.log(`   ✅ ${comprobantesDeleted} registros eliminados de saldos_comprobantes`);
 
-    // 3. Eliminar ledger (depende de miembros_grupo)
-    await trx('dbo.ledger').where({ grupo_id: grupoId }).delete();
+      // 3. Eliminar ledger (depende de gastos, liquidaciones Y miembros_grupo)
+      // DEBE ir ANTES de eliminar gastos y liquidaciones
+      console.log('3. Eliminando ledger...');
+      const ledgerDeleted = await trx('dbo.ledger').where({ grupo_id: grupoId }).delete();
+      console.log(`   ✅ ${ledgerDeleted} registros eliminados de ledger`);
 
-    // 4. Eliminar divisiones_gasto (depende de miembros_grupo y gastos, tiene CASCADE)
-    await trx('dbo.divisiones_gasto').where({ grupo_id: grupoId }).delete();
+      // 4. Eliminar divisiones_gasto (depende de gastos y miembros_grupo)
+      console.log('4. Eliminando divisiones_gasto...');
+      const divisionesDeleted = await trx('dbo.divisiones_gasto').where({ grupo_id: grupoId }).delete();
+      console.log(`   ✅ ${divisionesDeleted} registros eliminados de divisiones_gasto`);
 
-    // 5. Eliminar gastos (tiene CASCADE, pero vamos a ser explícitos)
-    await trx('dbo.gastos').where({ grupo_id: grupoId }).delete();
+      // 5. Eliminar gastos (ahora que ledger ya no los referencia)
+      console.log('5. Eliminando gastos...');
+      const gastosDeleted = await trx('dbo.gastos').where({ grupo_id: grupoId }).delete();
+      console.log(`   ✅ ${gastosDeleted} registros eliminados de gastos`);
 
-    // 6. Eliminar liquidaciones (tiene CASCADE, pero vamos a ser explícitos)
-    await trx('dbo.liquidaciones').where({ grupo_id: grupoId }).delete();
+      // 6. Eliminar liquidaciones (ahora que ledger ya no las referencia)
+      console.log('6. Eliminando liquidaciones...');
+      const liquidacionesDeleted = await trx('dbo.liquidaciones').where({ grupo_id: grupoId }).delete();
+      console.log(`   ✅ ${liquidacionesDeleted} registros eliminados de liquidaciones`);
 
-    // 7. Eliminar miembros_grupo (depende de grupos)
-    await trx('dbo.miembros_grupo').where({ grupo_id: grupoId }).delete();
+      // 7. Eliminar miembros_grupo (depende de grupos)
+      console.log('7. Eliminando miembros_grupo...');
+      const miembrosDeleted = await trx('dbo.miembros_grupo').where({ grupo_id: grupoId }).delete();
+      console.log(`   ✅ ${miembrosDeleted} registros eliminados de miembros_grupo`);
 
-    // 8. Finalmente eliminar el grupo
-    return trx('dbo.grupos').where({ id: grupoId }).delete();
+      // 8. Finalmente eliminar el grupo
+      console.log('8. Eliminando grupo...');
+      const result = await trx('dbo.grupos').where({ id: grupoId }).delete();
+      console.log(`   ✅ ${result} grupo eliminado`);
+      
+      console.log(`✅ Grupo ${grupoId} eliminado exitosamente`);
+      return result;
+      
+    } catch (error) {
+      console.error(`❌ Error eliminando grupo ${grupoId}:`, error);
+      throw error;
+    }
   });
 }
 
@@ -144,6 +172,3 @@ export async function listBalances(grupoId: string) {
     .select('u.id as usuarioId', 'u.nombre as usuarioNombre', 'u.correo as usuarioCorreo', db.raw("SUM(CASE WHEN l.direccion = 'C' THEN l.importe ELSE -l.importe END) as balance"))
     .orderBy('u.nombre');
 }
-
-
-

@@ -70,9 +70,17 @@ export async function updateMe({
     }
   }
 
-  const updatePayload = { nombre, clave_pago, foto_url: finalFotoUrl };
+  const updatePayload: { nombre?: string; clave_pago?: string | null; foto_url?: string | null } = {};
+
+  // Solo incluir campos que realmente queremos actualizar
+  if (nombre !== undefined) updatePayload.nombre = nombre;
+  if (clave_pago !== undefined) updatePayload.clave_pago = clave_pago;
+  if (finalFotoUrl !== null || foto_data !== undefined || foto_url !== undefined) {
+    updatePayload.foto_url = finalFotoUrl;
+  }
+
   console.log('📝 updateMe service - payload:', updatePayload);
-  console.log('📝 updateMe service - foto_url in payload:', finalFotoUrl);
+  console.log('📝 updateMe service - foto_url in payload:', updatePayload.foto_url);
 
   await repo.updateUser(firebaseUid, updatePayload);
   console.log('✅ updateMe service - DB update completed');

@@ -118,7 +118,7 @@ export function validarComprobantePorOcr(ocrText: string): ReceiptValidationResu
   }
 
   // 7) Decisión final
-  const valido = score >= 4; // puedes subir/bajar este umbral según veas falsos positivos
+  const valido = score >= 5; // puedes subir/bajar este umbral según veas falsos positivos
 
   return {
     valido,

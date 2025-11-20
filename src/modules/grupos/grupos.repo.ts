@@ -77,9 +77,32 @@ export async function countMembers(grupoId: string) {
 }
 
 export async function deleteGroup(grupoId: string) {
-  return db('dbo.grupos')
-    .where({ id: grupoId })
-    .delete();
+  // Eliminar en orden correcto para respetar las foreign keys
+  return db.transaction(async (trx) => {
+    // 1. Eliminar saldos_grupo (depende de miembros_grupo)
+    await trx('dbo.saldos_grupo').where({ grupo_id: grupoId }).delete();
+
+    // 2. Eliminar saldos_comprobantes (depende de miembros_grupo, pero tiene CASCADE)
+    await trx('dbo.saldos_comprobantes').where({ grupo_id: grupoId }).delete();
+
+    // 3. Eliminar ledger (depende de miembros_grupo)
+    await trx('dbo.ledger').where({ grupo_id: grupoId }).delete();
+
+    // 4. Eliminar divisiones_gasto (depende de miembros_grupo y gastos, tiene CASCADE)
+    await trx('dbo.divisiones_gasto').where({ grupo_id: grupoId }).delete();
+
+    // 5. Eliminar gastos (tiene CASCADE, pero vamos a ser explícitos)
+    await trx('dbo.gastos').where({ grupo_id: grupoId }).delete();
+
+    // 6. Eliminar liquidaciones (tiene CASCADE, pero vamos a ser explícitos)
+    await trx('dbo.liquidaciones').where({ grupo_id: grupoId }).delete();
+
+    // 7. Eliminar miembros_grupo (depende de grupos)
+    await trx('dbo.miembros_grupo').where({ grupo_id: grupoId }).delete();
+
+    // 8. Finalmente eliminar el grupo
+    return trx('dbo.grupos').where({ id: grupoId }).delete();
+  });
 }
 
 export async function listMembers(grupoId: string) {

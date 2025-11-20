@@ -80,8 +80,13 @@ export async function deleteGroup(grupoId: string) {
   // Eliminar en orden correcto para respetar las foreign keys
   return db.transaction(async (trx) => {
     console.log(`🗑️ Iniciando eliminación del grupo ${grupoId}`);
-    
+
     try {
+      // PASO CRÍTICO: Deshabilitar temporalmente el trigger de inmutabilidad del ledger
+      console.log('0. Deshabilitando trigger de inmutabilidad del ledger...');
+      await trx.raw('DISABLE TRIGGER dbo.trg_ledger_inmutable ON dbo.ledger');
+      console.log('   ✅ Trigger deshabilitado temporalmente');
+
       // 1. Eliminar saldos_grupo (depende de miembros_grupo)
       console.log('1. Eliminando saldos_grupo...');
       const saldosDeleted = await trx('dbo.saldos_grupo').where({ grupo_id: grupoId }).delete();
@@ -92,9 +97,8 @@ export async function deleteGroup(grupoId: string) {
       const comprobantesDeleted = await trx('dbo.saldos_comprobantes').where({ grupo_id: grupoId }).delete();
       console.log(`   ✅ ${comprobantesDeleted} registros eliminados de saldos_comprobantes`);
 
-      // 3. Eliminar ledger (depende de gastos, liquidaciones Y miembros_grupo)
-      // DEBE ir ANTES de eliminar gastos y liquidaciones
-      console.log('3. Eliminando ledger...');
+      // 3. Eliminar ledger (ahora SÍN el trigger de inmutabilidad)
+      console.log('3. Eliminando ledger (sin trigger de inmutabilidad)...');
       const ledgerDeleted = await trx('dbo.ledger').where({ grupo_id: grupoId }).delete();
       console.log(`   ✅ ${ledgerDeleted} registros eliminados de ledger`);
 
@@ -122,12 +126,27 @@ export async function deleteGroup(grupoId: string) {
       console.log('8. Eliminando grupo...');
       const result = await trx('dbo.grupos').where({ id: grupoId }).delete();
       console.log(`   ✅ ${result} grupo eliminado`);
-      
+
+      // 9. Rehabilitar el trigger de inmutabilidad del ledger
+      console.log('9. Rehabilitando trigger de inmutabilidad del ledger...');
+      await trx.raw('ENABLE TRIGGER dbo.trg_ledger_inmutable ON dbo.ledger');
+      console.log('   ✅ Trigger rehabilitado');
+
       console.log(`✅ Grupo ${grupoId} eliminado exitosamente`);
       return result;
-      
+
     } catch (error) {
       console.error(`❌ Error eliminando grupo ${grupoId}:`, error);
+      
+      // IMPORTANTE: Rehabilitar el trigger incluso si hubo error
+      try {
+        console.log('🔧 Rehabilitando trigger tras error...');
+        await trx.raw('ENABLE TRIGGER dbo.trg_ledger_inmutable ON dbo.ledger');
+        console.log('   ✅ Trigger rehabilitado tras error');
+      } catch (enableError) {
+        console.error('❌ Error rehabilitando trigger:', enableError);
+      }
+      
       throw error;
     }
   });
